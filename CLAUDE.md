@@ -51,6 +51,9 @@ CI (`.github/workflows/`) does the following:
 
 Keep code compatible with Python 3.7: no walrus operator, no positional-only parameters, and no `dict | dict`. When you change dependencies in `pyproject.toml`, also update `poetry.lock` and the exported `requirements*.txt` files. CI and Docker install only from the requirements files.
 
+- Use Poetry 1.8 (`poetry lock --no-update`, then `make export-requirements`). The lock is in Poetry 1.8's format, and Poetry 2 rewrites it.
+- `pyproject.toml` caps `importlib-metadata` below 5 on Python 3.7, because flake8 3.x breaks with newer versions.
+
 ## Settings
 
 - `manage.py` defaults to `pinry.settings.development` unless `DJANGO_SETTINGS_MODULE` or `--settings` is given. The development settings use SQLite at `db.sqlite3`, set `DEBUG=True` and add `django_extensions`. `manage.py` also sets `settings.IS_TEST = True` whenever `test` is in argv, and when `IS_TEST` is true, `pinry/urls.py` also serves static files.

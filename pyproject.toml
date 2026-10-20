@@ -34,6 +34,9 @@ black = "==19.10b0"
 [tool.poetry.group.dev.dependencies]
 jinja2 = "3.0.3"
 mkdocs-material = "8.4.0"
+# flake8 3.x calls entry_points().get(), which importlib-metadata 5+ removed;
+# on Python 3.7 flake8 uses this backport instead of the stdlib module.
+importlib-metadata = {version = "<5", python = "<3.8"}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
