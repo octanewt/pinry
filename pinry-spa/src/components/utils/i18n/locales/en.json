@@ -48,6 +48,8 @@
     "noResultsFound": "No results found",
     "SearchPanelBoardOption": "Board",
     "SearchPanelTagOption": "Tag",
+    "SearchPanelTagsModeAllOption": "All tags",
+    "SearchPanelTagsModeAnyOption": "Any tag",
     "Add2BoardModalCardTitle": "Add Pin to Board",
     "Add2BoardModalCardButton": "Add Pin to Board",
     "FileUploadDescription": "Drop your files here or click to upload",

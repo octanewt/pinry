@@ -169,6 +169,65 @@ class PinPrivacyTests(APITestCase):
         self.assertEqual(resp.status_code, 404)
 
 
+class PinTagsFilterTests(APITestCase):
+
+    def setUp(self):
+        super(PinTagsFilterTests, self).setUp()
+        self.owner = create_user("default")
+        with mock.patch('requests.get', mock_requests_get):
+            image = create_image()
+        self.pin_a = create_pin(self.owner, image, ["a"])
+        self.pin_ab = create_pin(self.owner, image, ["a", "b"])
+        self.pin_abc = create_pin(self.owner, image, ["a", "b", "c"])
+        self.pin_c = create_pin(self.owner, image, ["c"])
+        self.private_pin_ab = create_pin(self.owner, image, ["a", "b"])
+        self.private_pin_ab.private = True
+        self.private_pin_ab.save()
+
+    def tearDown(self):
+        _teardown_models()
+
+    def _get_ids(self, query):
+        resp = self.client.get(reverse("pin-list") + query)
+        self.assertEqual(resp.status_code, 200, resp.content)
+        data = resp.json()
+        self.assertEqual(data['count'], len(data['results']), resp.content)
+        return sorted(pin['id'] for pin in data['results'])
+
+    def test_should_match_all_tags_by_default(self):
+        ids = self._get_ids("?tags=a&tags=b")
+        self.assertEqual(ids, sorted([self.pin_ab.id, self.pin_abc.id]))
+        self.assertEqual(self._get_ids("?tags=a&tags=b&tags_mode=all"), ids)
+
+    def test_should_match_any_tag_without_duplicates(self):
+        ids = self._get_ids("?tags=b&tags=c&tags_mode=any")
+        self.assertEqual(ids, sorted([self.pin_ab.id, self.pin_abc.id, self.pin_c.id]))
+
+    def test_should_return_all_pins_when_no_tag_given(self):
+        all_ids = self._get_ids("")
+        self.assertEqual(len(all_ids), 4)
+        self.assertEqual(self._get_ids("?tags="), all_ids)
+        self.assertEqual(self._get_ids("?tags_mode=any"), all_ids)
+
+    def test_should_return_nothing_for_unknown_tag(self):
+        self.assertEqual(self._get_ids("?tags=a&tags=unknown"), [])
+
+    def test_should_reject_unknown_mode(self):
+        resp = self.client.get(reverse("pin-list") + "?tags=a&tags_mode=some")
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    def test_should_hide_private_pins_from_others_in_both_modes(self):
+        for mode in ("all", "any"):
+            ids = self._get_ids("?tags=a&tags=b&tags_mode=%s" % mode)
+            self.assertNotIn(self.private_pin_ab.id, ids)
+
+    def test_should_show_private_pins_to_owner(self):
+        self.client.login(username=self.owner.username, password='password')
+        for mode in ("all", "any"):
+            ids = self._get_ids("?tags=a&tags=b&tags_mode=%s" % mode)
+            self.assertIn(self.private_pin_ab.id, ids)
+
+
 class PinTests(APITestCase):
     _JSON_TYPE = "application/json"
 

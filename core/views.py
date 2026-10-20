@@ -7,6 +7,7 @@ from rest_framework.viewsets import GenericViewSet
 from taggit.models import Tag
 
 from core import serializers as api
+from core.filters import TagsFilterBackend
 from core.models import Image, Pin, Board
 from core.permissions import IsOwnerOrReadOnly, OwnerOnlyIfPrivate
 from core.serializers import filter_private_pin, filter_private_board
@@ -22,7 +23,7 @@ class ImageViewSet(mixins.CreateModelMixin, GenericViewSet):
 
 class PinViewSet(viewsets.ModelViewSet):
     serializer_class = api.PinSerializer
-    filter_backends = (DjangoFilterBackend, SearchFilter, OrderingFilter)
+    filter_backends = (DjangoFilterBackend, TagsFilterBackend, SearchFilter, OrderingFilter)
     filter_fields = ("submitter__username", 'tags__name', "pins__id")
     ordering_fields = ('-id', )
     ordering = ('-id', )

@@ -48,6 +48,8 @@
     "noResultsFound": "Aucun résultat",
     "SearchPanelBoardOption": "Tableau",
     "SearchPanelTagOption": "Tag",
+    "SearchPanelTagsModeAllOption": "Tous les tags",
+    "SearchPanelTagsModeAnyOption": "Au moins un tag",
     "Add2BoardModalCardTitle": "Ajouter une fiche au tableau",
     "Add2BoardModalCardButton": "Ajouter une fiche au tableau",
     "FileUploadDescription": "Place ton fichier ici ou clique sur Télécharger",

@@ -74,6 +74,7 @@ Django apps:
   - `Pin.url` and `Pin.referer` hold up to 2048 characters. `referer` is labelled "Source" in the UI.
   - When an image is fetched from a URL, it is checked with Pillow (`ImageManager._is_valid_image`) and rejected if Pillow can't open it.
   - Tags use `django-taggit` (pinned at 1.3.0). Filtering uses `django-filter` (pinned at 2.4.0).
+  - Multi-tag search is in `core/filters.py` (`TagsFilterBackend`): `/api/v2/pins/?tags=a&tags=b&tags_mode=all|any`, defaulting to `all`. The frontend sends repeated `tags=` keys through `serializeParams` in `api.js`.
 - **`django_images/`** is a vendored image library. It provides the base `Image` and `Thumbnail` models, MD5-hashed upload paths, and thumbnail generation at the sizes in `IMAGE_SIZES`. Signal handlers delete files on disk when rows are deleted (`IMAGE_AUTO_DELETE`).
 - **`users/`** has the custom `User` model, the login and logout views, and the `users` and `public-users` viewsets, mounted at `/api/v2/profile/`.
   - `users.auth.backends.CombinedAuthBackend` lets users log in with username or email.

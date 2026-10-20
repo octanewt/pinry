@@ -256,7 +256,9 @@ export default {
       this.status.loading = true;
       let promise;
       if (this.pinFilters.tagFilter) {
-        promise = API.fetchPins(this.status.offset, this.pinFilters.tagFilter, null, null);
+        promise = API.fetchPins(
+          this.status.offset, this.pinFilters.tagFilter, null, null, this.pinFilters.tagsMode,
+        );
       } else if (this.pinFilters.userFilter) {
         promise = API.fetchPins(this.status.offset, null, this.pinFilters.userFilter, null);
       } else if (this.pinFilters.boardFilter) {
