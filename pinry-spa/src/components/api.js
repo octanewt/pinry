@@ -111,7 +111,23 @@ const Pin = {
 };
 
 
-function fetchPins(offset, tagFilter, userFilter, boardFilter) {
+// Serialize array values as repeated keys (tags=a&tags=b),
+// which is what the backend expects for multi-value filters.
+function serializeParams(params) {
+  const search = new URLSearchParams();
+  Object.keys(params).forEach(
+    (key) => {
+      const value = params[key];
+      if (value === undefined || value === null) return;
+      [].concat(value).forEach(item => search.append(key, item));
+    },
+  );
+  return search.toString();
+}
+
+// tagFilter is a tag name or a list of tag names,
+// tagsMode is 'all' (pins with every tag) or 'any' (pins with at least one).
+function fetchPins(offset, tagFilter, userFilter, boardFilter, tagsMode) {
   const url = `${API_PREFIX}pins/`;
   const queryArgs = {
     format: 'json',
@@ -119,12 +135,15 @@ function fetchPins(offset, tagFilter, userFilter, boardFilter) {
     limit: 30,
     offset,
   };
-  if (tagFilter) queryArgs.tags__name = tagFilter;
+  if (tagFilter) {
+    queryArgs.tags = tagFilter;
+    if (tagsMode) queryArgs.tags_mode = tagsMode;
+  }
   if (userFilter) queryArgs.submitter__username = userFilter;
   if (boardFilter) queryArgs.pins__id = boardFilter;
   return axios.get(
     url,
-    { params: queryArgs },
+    { params: queryArgs, paramsSerializer: serializeParams },
   );
 }
 
