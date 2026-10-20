@@ -2,6 +2,10 @@
 
 This file guides Claude Code (claude.ai/code) when working in this repository.
 
+## Fork and upstream
+
+This repository is `octanewt/pinry`, a fork of `pinry/pinry` (upstream). Open pull requests against this fork's `master`. Don't open a pull request on `pinry/pinry`, or offer to, unless the user explicitly asks for one.
+
 ## Project overview
 
 Pinry is a self-hosted, Pinterest-style image board. It has two parts:
