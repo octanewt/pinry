@@ -310,6 +310,66 @@ class PinTests(APITestCase):
         )
         self.assertEquals(Pin.objects.count(), 2)
 
+    def _post_pin_with_image(self, image_pk):
+        return self.client.post(
+            reverse("pin-list"), {'image_by_id': image_pk}, format="json",
+        )
+
+    def test_should_share_image_of_visible_pin(self):
+        image = create_image()
+        create_pin(create_user("other"), image, [])
+        response = self._post_pin_with_image(image.pk)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.json())
+        self.assertEqual(Image.objects.count(), 1)
+        self.assertEqual(Pin.objects.get(pk=response.json()['id']).image_id, image.pk)
+
+    def test_should_reject_image_of_others_private_pin(self):
+        image = create_image()
+        pin = create_pin(create_user("other"), image, [])
+        pin.private = True
+        pin.save()
+        response = self._post_pin_with_image(image.pk)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Pin.objects.count(), 1)
+        # Same error as for an image that doesn't exist, so it isn't revealed
+        missing = self._post_pin_with_image(image.pk + 1000).json()['image_by_id']
+        self.assertEqual(
+            response.json()['image_by_id'],
+            [m.replace(str(image.pk + 1000), str(image.pk)) for m in missing],
+        )
+
+    def test_owner_should_reuse_own_private_image(self):
+        image = create_image()
+        pin = create_pin(self.user, image, [])
+        pin.private = True
+        pin.save()
+        response = self._post_pin_with_image(image.pk)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.json())
+
+    def _image_files(self, image):
+        return [image.image] + [t.image for t in image.thumbnail_set.all()]
+
+    def test_delete_pin_should_keep_shared_image(self):
+        image = create_image()
+        other_pin = create_pin(create_user("other"), image, [])
+        pin = create_pin(self.user, image, [])
+        files = self._image_files(image)
+        self.client.delete(reverse("pin-detail", kwargs={"pk": pin.pk}))
+        self.assertFalse(Pin.objects.filter(pk=pin.pk).exists())
+        self.assertTrue(Pin.objects.filter(pk=other_pin.pk).exists())
+        self.assertTrue(Image.objects.filter(pk=image.pk).exists())
+        for f in files:
+            self.assertTrue(f.storage.exists(f.name), f.name)
+
+    def test_delete_last_pin_should_remove_image(self):
+        image = create_image()
+        pin = create_pin(self.user, image, [])
+        files = self._image_files(image)
+        self.client.delete(reverse("pin-detail", kwargs={"pk": pin.pk}))
+        self.assertFalse(Image.objects.filter(pk=image.pk).exists())
+        for f in files:
+            self.assertFalse(f.storage.exists(f.name), f.name)
+
     def test_patch_detail_unauthenticated(self):
         image = create_image()
         pin = create_pin(self.user, image, [])

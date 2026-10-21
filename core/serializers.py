@@ -85,6 +85,22 @@ class TagSerializer(serializers.SlugRelatedField):
         return obj
 
 
+class ReusableImageField(serializers.PrimaryKeyRelatedField):
+    """
+    Accept an image only if it is a fresh upload that no pin uses yet, or is
+    used by a pin the requester can see. Any other image is rejected as if it
+    didn't exist, so a private image's existence isn't revealed.
+    """
+
+    def get_queryset(self):
+        visible_pins = filter_private_pin(
+            self.context['request'], Pin.objects.all(),
+        )
+        return Image.objects.filter(
+            Q(pin__isnull=True) | Q(pin__in=visible_pins),
+        ).distinct()
+
+
 class PinSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Pin
@@ -108,8 +124,7 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
         required=False,
     )
     image = ImageSerializer(required=False, read_only=True)
-    image_by_id = serializers.PrimaryKeyRelatedField(
-        queryset=Image.objects.all(),
+    image_by_id = ReusableImageField(
         write_only=True,
         required=False,
     )
