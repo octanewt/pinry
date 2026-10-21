@@ -147,6 +147,14 @@ IS_TEST = False
 # User custom settings
 IMAGE_AUTO_DELETE = True
 
+# Set to True to let users pin images from loopback, private (LAN),
+# link-local and other non-public addresses. Only do this if you trust
+# every account holder, since it lets them reach internal services.
+ALLOW_PRIVATE_URL_FETCH = False
+
+# Largest image, in bytes, that Pinry will download when pinning by URL.
+MAX_FETCH_BYTES = 50 * 1024 * 1024
+
 # Rest Framework
 
 DRF_URL_FIELD_NAME = "resource_link"

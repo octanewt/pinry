@@ -1,7 +1,9 @@
+import os
+
 import PIL.Image
-import requests
 
 from io import BytesIO
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
@@ -11,41 +13,65 @@ from django.dispatch import receiver
 from django_images.models import Image as BaseImage, Thumbnail
 from taggit.managers import TaggableManager
 
+from core.fetch import fetch_url
+
 from users.models import User
 
 
 class ImageManager(models.Manager):
-    _default_ua = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 5.1) '
-                      'AppleWebKit/537.36 (KHTML, like Gecko) '
-                      'Chrome/48.0.2564.82 Safari/537.36',
+    # Formats whose most common extension isn't the first one Pillow lists.
+    _preferred_extensions = {
+        "JPEG": ".jpg",
+        "MPO": ".jpg",
+        "TIFF": ".tif",
     }
 
     @staticmethod
     def _is_valid_image(fp):
+        return ImageManager._detect_format(fp) is not None
+
+    @staticmethod
+    def _detect_format(fp):
         fp.seek(0)
         try:
-            PIL.Image.open(fp)
-        except PIL.UnidentifiedImageError:
-            fp.seek(0)
-            return False
-        else:
-            fp.seek(0)
-            return True
+            image_format = PIL.Image.open(fp).format
+        except (PIL.UnidentifiedImageError, PIL.Image.DecompressionBombError):
+            image_format = None
+        fp.seek(0)
+        return image_format
+
+    @classmethod
+    def _extension_for_format(cls, image_format):
+        if image_format in cls._preferred_extensions:
+            return cls._preferred_extensions[image_format]
+        for ext, fmt in PIL.Image.registered_extensions().items():
+            if fmt == image_format:
+                return ext
+        return None
+
+    @staticmethod
+    def _base_name(url):
+        file_name = urlparse(url).path.rsplit("/", 1)[-1]
+        base = os.path.splitext(file_name)[0][:64]
+        return base or "image"
 
     # FIXME: Move this into an asynchronous task
     def create_for_url(self, url, referer=None):
-        file_name = url.split("/")[-1].split('#')[0].split('?')[0]
-        buf = BytesIO()
-        headers = dict(self._default_ua)
-        if referer is not None:
-            headers["Referer"] = referer
-        response = requests.get(url, headers=headers)
-        buf.write(response.content)
-        if not self._is_valid_image(buf):
+        """Fetch ``url`` and store it as an Image.
+
+        Returns None if the content isn't an image Pillow can read; raises
+        core.fetch.FetchError if the URL can't or mustn't be fetched.
+        """
+        buf = BytesIO(fetch_url(url, referer=referer))
+        ext = self._extension_for_format(self._detect_format(buf))
+        if ext is None:
             return None
+        # Name the file after the detected format, never the URL, so a
+        # polyglot fetched from ".../x.html" isn't served as HTML.
+        file_name = self._base_name(url) + ext
+        size = len(buf.getvalue())
         obj = InMemoryUploadedFile(buf, 'image', file_name,
-                                   None, buf.tell(), None)
+                                   None, size, None)
         # create the image and its thumbnails in one transaction, removing
         # a chance of getting Database into a inconsistent state when we
         # try to create thumbnails one by one later

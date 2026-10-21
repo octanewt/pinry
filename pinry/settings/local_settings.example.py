@@ -43,6 +43,14 @@ IMAGE_SIZES = {
 # Whether people can view pins without login
 PUBLIC = True
 
+# Allow pinning images from private/LAN addresses (e.g. http://192.168.1.10/).
+# Only enable this if you trust every account holder: it lets them make the
+# server fetch from internal services.
+ALLOW_PRIVATE_URL_FETCH = False
+
+# Largest image, in bytes, downloaded when pinning by URL
+MAX_FETCH_BYTES = 50 * 1024 * 1024
+
 ENABLED_PLUGINS = [
     'pinry_plugins.batteries.plugin_example.Plugin',
 ]

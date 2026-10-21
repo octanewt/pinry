@@ -73,6 +73,23 @@ and remove the container then restart it.
 ALLOW_NEW_REGISTRATIONS = True
 ```
 
+### Pin images from your local network
+When you pin by URL, the server downloads the image itself. To stop users
+from reaching internal services this way, Pinry refuses URLs that point to
+loopback, private (LAN), link-local and other non-public addresses, follows
+at most 3 redirects (each one checked the same way), and stops downloads
+larger than 50 MB.
+
+If every account holder is trusted and you want to pin from hosts on your
+LAN, add this to `/data/local_settings.py`:
+
+```
+ALLOW_PRIVATE_URL_FETCH = True
+```
+
+The size limit can be changed with `MAX_FETCH_BYTES` (in bytes). The default
+matches the 50 MB upload limit in the bundled nginx config.
+
 ## Building docker-pinry again (with latest version)
 
 

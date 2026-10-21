@@ -5,6 +5,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from taggit.models import Tag
 
+from core.fetch import FetchError
 from core.models import Image, Board
 from core.models import Pin
 from django_images.models import Thumbnail
@@ -157,10 +158,13 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
         submitter = self.context['request'].user
         if 'url' in validated_data and validated_data['url']:
             url = validated_data['url']
-            image = Image.objects.create_for_url(
-                url,
-                validated_data.get('referer', url),
-            )
+            try:
+                image = Image.objects.create_for_url(
+                    url,
+                    validated_data.get('referer', url),
+                )
+            except FetchError as e:
+                raise ValidationError({"url": str(e)})
             if not image:
                 raise ValidationError({"url": "invalid image content"})
         else:
