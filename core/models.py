@@ -116,6 +116,9 @@ class Pin(models.Model):
 
 @receiver(models.signals.post_delete, sender=Pin)
 def delete_pin_images(sender, instance, **kwargs):
+    # Pins can share an image, so only delete it along with its last pin.
+    if Pin.objects.filter(image_id=instance.image_id).exists():
+        return
     try:
         instance.image.delete()
     except Image.DoesNotExist:
