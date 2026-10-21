@@ -28,7 +28,7 @@
                   </p>
                 </div>
                 <div class="is-pulled-right">
-                  <a :href="pinItem.referer" target="_blank">
+                  <a :href="pinItem.referer" target="_blank" rel="noopener noreferrer">
                     <b-button
                         v-show="pinItem.referer !== null"
                         class="meta-link"
@@ -36,7 +36,7 @@
                       {{ $t("sourceButton") }}
                     </b-button>
                   </a>
-                  <a :href="pinItem.original_image_url" target="_blank">
+                  <a :href="pinItem.original_image_url" target="_blank" rel="noopener noreferrer">
                     <b-button
                         v-show="pinItem.original_image_url !== null"
                         class="meta-link"

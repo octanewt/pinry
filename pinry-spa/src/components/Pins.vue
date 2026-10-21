@@ -58,7 +58,7 @@
                             </span>
                           </template>
                         </template>
-                        <span v-if="item.referer">• <a :href="item.referer" target="_blank">{{ $t("sourceLink") }}</a></span>
+                        <span v-if="item.referer">• <a :href="item.referer" target="_blank" rel="noopener noreferrer">{{ $t("sourceLink") }}</a></span>
                       </span>
                     </div>
                     <div class="is-clearfix"></div>
@@ -85,6 +85,7 @@ import scroll from './utils/scroll';
 import bus from './utils/bus';
 import EditorUI from './editors/PinEditorUI.vue';
 import niceLinks from './utils/niceLinks';
+import safeUrl from './utils/safeUrl';
 
 function createImageItem(pin) {
   const image = {};
@@ -97,8 +98,8 @@ function createImageItem(pin) {
   image.author = pin.submitter.username;
   image.avatar = `//gravatar.com/avatar/${pin.submitter.gravatar}`;
   image.large_image_url = pinHandler.escapeUrl(pin.image.image);
-  image.original_image_url = pin.url;
-  image.referer = pin.referer;
+  image.original_image_url = safeUrl(pin.url);
+  image.referer = safeUrl(pin.referer);
   image.orgianl_width = pin.image.width;
   image.style = {
     width: `${pin.image.thumbnail.width}px`,

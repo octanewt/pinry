@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db.models import Q
+from urllib.parse import urlparse
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from taggit.models import Tag
@@ -17,6 +18,15 @@ def filter_private_pin(request, query):
     else:
         query = query.exclude(private=True)
     return query.select_related('image', 'submitter')
+
+
+def validate_http_url(value):
+    # Pin links are rendered as hrefs, so only allow http(s) schemes.
+    if not value:
+        return value
+    if urlparse(value.strip()).scheme.lower() not in ("http", "https"):
+        raise ValidationError("Only http and https URLs are allowed.")
+    return value
 
 
 def filter_private_board(request, query):
@@ -113,6 +123,12 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
         write_only=True,
         required=False,
     )
+
+    def validate_url(self, value):
+        return validate_http_url(value)
+
+    def validate_referer(self, value):
+        return validate_http_url(value)
 
     def create(self, validated_data):
         if 'url' not in validated_data and\
