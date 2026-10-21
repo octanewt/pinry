@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, urlparse
@@ -43,6 +44,19 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(200, b"x" * 5000)
         elif parsed.path == "/big-no-length":
             self._send(200, b"x" * 5000, content_length=False)
+        elif parsed.path in ("/slow", "/slow-no-length"):
+            # Trickles bytes, each well within the per-read timeout.
+            self.send_response(200)
+            if parsed.path == "/slow":
+                self.send_header("Content-Length", "100")
+            self.end_headers()
+            try:
+                for _ in range(100):
+                    self.wfile.write(b"x")
+                    self.wfile.flush()
+                    time.sleep(0.1)
+            except OSError:
+                pass
         elif parsed.path == "/missing":
             self._send(404, b"not here")
         elif parsed.path == "/redirect":
@@ -222,6 +236,19 @@ class FetchUrlTests(FetchServerMixin, SimpleTestCase):
     @override_settings(MAX_FETCH_BYTES=5000)
     def test_size_cap_allows_exact_limit(self):
         self.assertEqual(len(fetch_url(self.url("/big-no-length"))), 5000)
+
+    def test_total_timeout_stops_trickling_server(self):
+        with mock.patch("core.fetch.TOTAL_TIMEOUT", 1):
+            for path in ("/slow", "/slow-no-length"):
+                started = time.monotonic()
+                with self.assertRaisesMessage(FetchError, "too long"):
+                    fetch_url(self.url(path))
+                self.assertLess(time.monotonic() - started, 3, path)
+
+    def test_total_timeout_covers_redirects(self):
+        with mock.patch("core.fetch.TOTAL_TIMEOUT", 1):
+            with self.assertRaisesMessage(FetchError, "too long"):
+                fetch_url(self.url("/redirect?to=/slow"))
 
     def test_rejects_error_status(self):
         with self.assertRaises(FetchError):

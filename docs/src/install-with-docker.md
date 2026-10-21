@@ -78,7 +78,7 @@ When you pin by URL, the server downloads the image itself. To stop users
 from reaching internal services this way, Pinry refuses URLs that point to
 loopback, private (LAN), link-local and other non-public addresses, follows
 at most 3 redirects (each one checked the same way), and stops downloads
-larger than 50 MB.
+larger than 50 MB or slower than 20 seconds.
 
 If every account holder is trusted and you want to pin from hosts on your
 LAN, add this to `/data/local_settings.py`:
