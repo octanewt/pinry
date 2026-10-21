@@ -16,7 +16,7 @@ class PublicUserSerializer(serializers.HyperlinkedModelSerializer):
         )
         extra_kwargs = {
             settings.DRF_URL_FIELD_NAME: {
-                "view_name": "public-users:user-detail",
+                "view_name": "users:public-user-detail",
             },
         }
 

@@ -8,7 +8,7 @@ from taggit.models import Tag
 from core.models import Image, Board
 from core.models import Pin
 from django_images.models import Thumbnail
-from users.serializers import UserSerializer
+from users.serializers import PublicUserSerializer
 from users.models import User
 
 
@@ -127,7 +127,7 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
             "tags",
         )
 
-    submitter = UserSerializer(read_only=True)
+    submitter = PublicUserSerializer(read_only=True)
     tags = TagSerializer(
         many=True,
         source="tag_list",
@@ -218,7 +218,7 @@ class BoardSerializer(serializers.HyperlinkedModelSerializer):
             'submitter': {"view_name": "users:user-detail"},
         }
 
-    submitter = UserSerializer(read_only=True)
+    submitter = PublicUserSerializer(read_only=True)
     total_pins = serializers.SerializerMethodField(
         read_only=True,
     )
@@ -247,7 +247,9 @@ class BoardSerializer(serializers.HyperlinkedModelSerializer):
         return query.count()
 
     def get_cover(self, instance: Board) -> dict or None:
-        pin = instance.pins.first()
+        pin = filter_private_pin(
+            self.context['request'], instance.pins.all(),
+        ).first()
         if pin is None:
             return None
         return PinSerializer(pin, context=self.context).data

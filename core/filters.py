@@ -1,7 +1,31 @@
 import coreapi
 import coreschema
+import django_filters
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import BaseFilterBackend
+
+from core.models import Board, Pin
+from core.serializers import filter_private_board
+
+
+class PinFilter(django_filters.FilterSet):
+    """
+    `pins__id` is the board id (`Board.pins` uses `related_name="pins"`).
+    A board the requester can't see matches no pins, so the public pins of
+    a private board can't be listed by others.
+    """
+
+    pins__id = django_filters.NumberFilter(method="filter_board")
+
+    class Meta:
+        model = Pin
+        fields = ("submitter__username", "tags__name")
+
+    def filter_board(self, queryset, name, value):
+        boards = filter_private_board(
+            self.request, Board.objects.filter(id=value),
+        )
+        return queryset.filter(pins__in=boards)
 
 
 class TagsFilterBackend(BaseFilterBackend):

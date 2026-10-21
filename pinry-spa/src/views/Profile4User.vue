@@ -47,6 +47,19 @@ export default {
             );
           } else {
             self.profile = user;
+            self.loadOwnToken(user.username);
+          }
+        },
+      );
+    },
+    loadOwnToken(username) {
+      // The public profile never carries the token, so fetch it from
+      // the requester's own profile when this page is theirs.
+      const self = this;
+      api.User.fetchUserInfo(true).then(
+        (me) => {
+          if (me !== null && me.username === username) {
+            self.profile = { ...self.profile, token: me.token };
           }
         },
       );

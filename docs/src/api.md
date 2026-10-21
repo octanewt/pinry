@@ -25,6 +25,28 @@ You will get response like this:
         }
     ]
 
+`email` and `token` are only returned to the user themself, through `/api/v2/profile/users/`.
+
+# Other users
+
+Pins and boards embed their owner as `submitter`, and `/api/v2/profile/public-users/?username=<name>` describes any user. Both return only public fields:
+
+    {
+        "username": "winkidney",
+        "gravatar": "0d7161ac663cdb21108502cd4051149c",
+        "resource_link": "http://localhost:8000/api/v2/profile/public-users/1/"
+    }
+
+Before this change, `submitter` and `public-users` also returned `email` (to anyone) and `token` (to the user themself). Clients that read either field from there should use `/api/v2/profile/users/` instead.
+
+# Privacy filters
+
+Private pins and boards are only visible to their owner, and the API applies this everywhere:
+
+- `/api/v2/pins/?pins__id=<board id>` lists a board's pins, and returns nothing for a private board of another user.
+- A board's `cover` is chosen among the pins the requester can see.
+- `/api/v2/tags-auto-complete/` lists only tags used on pins the requester can see.
+
 
 # API reference
 Just use the interactive API interface by DRF or follow the file [api.js](https://github.com/pinry/pinry/blob/master/pinry-spa/src/components/api.js)
