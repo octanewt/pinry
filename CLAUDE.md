@@ -110,6 +110,7 @@ Frontend (`pinry-spa/src/`):
 - `black==19.10b0` is a dev dependency but is not enforced in CI. Match the style of the surrounding code.
 - After changing models, generate migrations with `manage.py makemigrations` and commit them. Don't hand-edit existing migrations.
 - Frontend code follows the airbnb ESLint rules (2-space indent, semicolons, trailing commas).
+- User-supplied text and URLs are untrusted. Render text with `{{ }}`, or through `niceLinks` (`components/utils/niceLinks.js`, which escapes everything) when it needs `v-html`. Pass any user-supplied `href` through `safeUrl` (`components/utils/safeUrl.js`), which allows only http(s). The API also rejects non-http(s) `url` and `referer` values (`validate_http_url` in `core/serializers.py`). Never cache the API token in localStorage.
 
 ## Docker
 

@@ -289,6 +289,42 @@ class PinTests(APITestCase):
         self.assertIsNotNone(pin.image.image)
         self.assertEqual(pin.tags.count(), 0)
 
+    def test_should_reject_non_http_referer(self):
+        image = create_image()
+        create_url = reverse("pin-list")
+        for referer in ('javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,x'):
+            post_data = {'referer': referer, 'image_by_id': image.pk}
+            response = self.client.post(create_url, data=post_data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, referer)
+            self.assertIn('referer', response.json())
+        self.assertEqual(Pin.objects.count(), 0)
+
+    def test_should_accept_blank_referer(self):
+        image = create_image()
+        create_url = reverse("pin-list")
+        for referer in ('', None):
+            post_data = {'referer': referer, 'image_by_id': image.pk}
+            response = self.client.post(create_url, data=post_data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.json())
+
+    @mock.patch('requests.get')
+    def test_should_reject_non_http_url_without_fetching(self, mocked_get):
+        create_url = reverse("pin-list")
+        post_data = {'url': 'javascript:alert(1)//logo.png'}
+        response = self.client.post(create_url, data=post_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('url', response.json())
+        mocked_get.assert_not_called()
+
+    def test_should_reject_non_http_referer_on_patch(self):
+        pin = create_pin(self.user, create_image(), [])
+        uri = reverse("pin-detail", kwargs={"pk": pin.pk})
+        response = self.client.patch(
+            uri, {'referer': 'javascript:alert(1)'}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIsNone(Pin.objects.get(pk=pin.pk).referer)
+
     def test_should_post_create_pin_with_existed_image(self):
         image = create_image()
         create_pin(self.user, image=image, tags=[])

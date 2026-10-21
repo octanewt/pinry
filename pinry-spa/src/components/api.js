@@ -282,7 +282,9 @@ const User = {
               return resolve(null);
             }
             const value = users[0];
-            storage.set(self.storageKey, value, 60 * 5 * 1000);
+            // Keep the API token out of localStorage, where any script can read it.
+            const { token, ...cached } = value;
+            storage.set(self.storageKey, cached, 60 * 5 * 1000);
             return resolve(users[0]);
           },
         );
