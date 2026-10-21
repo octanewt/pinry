@@ -1,5 +1,3 @@
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, mixins, routers
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -7,7 +5,7 @@ from rest_framework.viewsets import GenericViewSet
 from taggit.models import Tag
 
 from core import serializers as api
-from core.filters import TagsFilterBackend
+from core.filters import PinFilter, TagsFilterBackend
 from core.models import Image, Pin, Board
 from core.permissions import IsOwnerOrReadOnly, OwnerOnlyIfPrivate
 from core.serializers import filter_private_pin, filter_private_board
@@ -24,7 +22,7 @@ class ImageViewSet(mixins.CreateModelMixin, GenericViewSet):
 class PinViewSet(viewsets.ModelViewSet):
     serializer_class = api.PinSerializer
     filter_backends = (DjangoFilterBackend, TagsFilterBackend, SearchFilter, OrderingFilter)
-    filter_fields = ("submitter__username", 'tags__name', "pins__id")
+    filterset_class = PinFilter
     ordering_fields = ('-id', )
     ordering = ('-id', )
     permission_classes = [IsOwnerOrReadOnly("submitter"), OwnerOnlyIfPrivate("submitter")]
@@ -65,17 +63,14 @@ class BoardAutoCompleteViewSet(
 
 
 class TagAutoCompleteViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    # The list depends on who is asking, so it must not be cached per URL.
     queryset = Tag.objects.all()
     serializer_class = api.TagAutoCompleteSerializer
     pagination_class = None
 
-    @method_decorator(cache_page(60 * 5))
-    def list(self, request, *args, **kwargs):
-        return super(TagAutoCompleteViewSet, self).list(
-            request,
-            *args,
-            **kwargs
-        )
+    def get_queryset(self):
+        visible_pins = filter_private_pin(self.request, Pin.objects.all())
+        return Tag.objects.filter(pin__in=visible_pins).distinct()
 
 
 drf_router = routers.DefaultRouter()
@@ -83,4 +78,4 @@ drf_router.register(r'pins', PinViewSet, basename="pin")
 drf_router.register(r'images', ImageViewSet)
 drf_router.register(r'boards', BoardViewSet, basename="board")
 drf_router.register(r'tags-auto-complete', TagAutoCompleteViewSet)
-drf_router.register(r'boards-auto-complete', BoardAutoCompleteViewSet, basename="board")
+drf_router.register(r'boards-auto-complete', BoardAutoCompleteViewSet, basename="board-auto-complete")

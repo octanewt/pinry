@@ -54,6 +54,7 @@ class BoardPrivacyTests(APITestCase):
         )
         self.board_url = reverse("board-detail", kwargs={"pk": self.private_board.pk})
         self.boards_url = reverse("board-list")
+        self.boards_auto_complete_url = reverse("board-auto-complete-list")
 
     def tearDown(self):
         _teardown_models()
@@ -65,18 +66,21 @@ class BoardPrivacyTests(APITestCase):
         pin.save()
         return pin
 
+    def _listed_board_ids(self):
+        boards = self.client.get(self.boards_url).json()["results"]
+        auto_complete = self.client.get(self.boards_auto_complete_url).json()
+        return [b["id"] for b in boards], [b["id"] for b in auto_complete]
+
     def test_should_non_owner_and_anonymous_user_has_no_permission_to_list_private_board(self):
-        resp = self.client.get(self.boards_url)
-        self.assertEqual(len(resp.json()), 0, resp.json())
+        self.assertEqual(self._listed_board_ids(), ([], []))
 
         self.client.login(username=self.non_owner.username, password='password')
-        resp = self.client.get(self.boards_url)
-        self.assertEqual(len(resp.json()), 0, resp.content)
+        self.assertEqual(self._listed_board_ids(), ([], []))
 
     def test_should_owner_has_permission_to_list_private_board(self):
-        self.client.login(username=self.non_owner.username, password='password')
-        resp = self.client.get(self.boards_url)
-        self.assertEqual(len(resp.json()), 0, resp.content)
+        self.client.login(username=self.owner.username, password='password')
+        board_id = self.private_board.id
+        self.assertEqual(self._listed_board_ids(), ([board_id], [board_id]))
 
     def test_should_non_owner_and_anonymous_user_has_no_permission_to_view_private_board(self):
         resp = self.client.get(self.board_url)
@@ -441,3 +445,112 @@ class PinTests(APITestCase):
         uri = reverse("pin-detail", kwargs={"pk": pin.pk})
         self.client.delete(uri)
         self.assertEqual(Pin.objects.count(), 0)
+
+
+class PrivacyLeakTests(APITestCase):
+
+    def setUp(self):
+        super(PrivacyLeakTests, self).setUp()
+        self.owner = create_user("owner")
+        self.other = create_user("other")
+
+    def tearDown(self):
+        _teardown_models()
+
+    def _create_pin(self, private, tags=()):
+        pin = create_pin(self.owner, create_image(), list(tags))
+        pin.private = private
+        pin.save()
+        return pin
+
+    def test_pin_list_should_not_expose_submitter_email(self):
+        self._create_pin(private=False)
+        resp = self.client.get(reverse("pin-list"))
+        submitter = resp.json()["results"][0]["submitter"]
+        self.assertEqual(submitter["username"], self.owner.username)
+        self.assertNotIn("email", submitter)
+        self.assertNotIn("token", submitter)
+
+    def test_board_list_should_not_expose_submitter_email(self):
+        Board.objects.create(name="board", submitter=self.owner)
+        resp = self.client.get(reverse("board-list"))
+        submitter = resp.json()["results"][0]["submitter"]
+        self.assertEqual(submitter["username"], self.owner.username)
+        self.assertNotIn("email", submitter)
+
+    def test_board_cover_should_skip_private_pin(self):
+        board = Board.objects.create(name="board", submitter=self.owner)
+        board.pins.add(self._create_pin(private=True))
+        url = reverse("board-detail", kwargs={"pk": board.pk})
+
+        resp = self.client.get(url)
+        self.assertEqual(resp.json()["total_pins"], 0)
+        self.assertIsNone(resp.json()["cover"])
+
+        public_pin = self._create_pin(private=False)
+        board.pins.add(public_pin)
+        resp = self.client.get(url)
+        self.assertEqual(resp.json()["cover"]["id"], public_pin.id)
+
+    def test_board_cover_should_show_private_pin_to_owner(self):
+        board = Board.objects.create(name="board", submitter=self.owner)
+        pin = self._create_pin(private=True)
+        board.pins.add(pin)
+        self.client.force_login(self.owner)
+        resp = self.client.get(reverse("board-detail", kwargs={"pk": board.pk}))
+        self.assertEqual(resp.json()["cover"]["id"], pin.id)
+
+    def test_tag_autocomplete_should_hide_private_only_tags(self):
+        self._create_pin(private=True, tags=["secret-tag"])
+        self._create_pin(private=False, tags=["public-tag"])
+        url = reverse("tag-list")
+
+        # The owner asks first, so a shared cache would leak the secret tag.
+        self.client.force_login(self.owner)
+        names = {t["name"] for t in self.client.get(url).json()}
+        self.assertEqual(names, {"secret-tag", "public-tag"})
+
+        self.client.logout()
+        names = [t["name"] for t in self.client.get(url).json()]
+        self.assertEqual(names, ["public-tag"])
+
+        self.client.force_login(self.other)
+        names = [t["name"] for t in self.client.get(url).json()]
+        self.assertEqual(names, ["public-tag"])
+
+    def test_board_filter_should_hide_pins_of_private_board(self):
+        board = Board.objects.create(name="board", submitter=self.owner, private=True)
+        pin = self._create_pin(private=False)
+        board.pins.add(pin)
+        self._create_pin(private=False)
+        url = "{}?pins__id={}".format(reverse("pin-list"), board.pk)
+
+        self.assertEqual(self.client.get(url).json()["count"], 0)
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(url).json()["count"], 0)
+
+        self.client.force_login(self.owner)
+        results = self.client.get(url).json()["results"]
+        self.assertEqual([p["id"] for p in results], [pin.id])
+
+    def test_board_filter_should_list_pins_of_public_board(self):
+        board = Board.objects.create(name="board", submitter=self.owner)
+        pin = self._create_pin(private=False)
+        board.pins.add(pin)
+        board.pins.add(self._create_pin(private=True))
+        self._create_pin(private=False)
+        url = "{}?pins__id={}".format(reverse("pin-list"), board.pk)
+
+        results = self.client.get(url).json()["results"]
+        self.assertEqual([p["id"] for p in results], [pin.id])
+
+    def test_non_owner_should_not_edit_or_delete_pin(self):
+        pin = self._create_pin(private=False)
+        url = reverse("pin-detail", kwargs={"pk": pin.pk})
+        self.client.force_login(self.other)
+
+        resp = self.client.patch(url, {"description": "hacked"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        resp = self.client.delete(url)
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(Pin.objects.get(pk=pin.pk).description, None)
