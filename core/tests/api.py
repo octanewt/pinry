@@ -18,14 +18,13 @@ def _teardown_models():
     Board.objects.all().delete()
 
 
-def mock_requests_get(url, **kwargs):
-    response = mock.Mock(content=open('docs/src/imgs/logo-dark.png', 'rb').read())
-    return response
+def mock_fetch_url(url, **kwargs):
+    with open('docs/src/imgs/logo-dark.png', 'rb') as f:
+        return f.read()
 
 
-def mock_requests_get_with_non_image_content(url, **kwargs):
-    response = mock.Mock(content=b"abcd")
-    return response
+def mock_fetch_url_with_non_image_content(url, **kwargs):
+    return b"abcd"
 
 
 class ImageTests(APITestCase):
@@ -127,7 +126,7 @@ class PinPrivacyTests(APITestCase):
         self.owner = create_user("default")
         self.non_owner = create_user("non_owner")
 
-        with mock.patch('requests.get', mock_requests_get):
+        with mock.patch('core.models.fetch_url', mock_fetch_url):
             image = create_image()
         self.private_pin = Pin.objects.create(
             submitter=self.owner,
@@ -178,7 +177,7 @@ class PinTagsFilterTests(APITestCase):
     def setUp(self):
         super(PinTagsFilterTests, self).setUp()
         self.owner = create_user("default")
-        with mock.patch('requests.get', mock_requests_get):
+        with mock.patch('core.models.fetch_url', mock_fetch_url):
             image = create_image()
         self.pin_a = create_pin(self.owner, image, ["a"])
         self.pin_ab = create_pin(self.owner, image, ["a", "b"])
@@ -243,7 +242,7 @@ class PinTests(APITestCase):
     def tearDown(self):
         _teardown_models()
 
-    @mock.patch('requests.get', mock_requests_get_with_non_image_content)
+    @mock.patch('core.models.fetch_url', mock_fetch_url_with_non_image_content)
     def test_should_not_create_pin_if_url_content_invalid(self):
         url = 'http://testserver.com/mocked/logo-01.png'
         create_url = reverse("pin-list")
@@ -257,7 +256,7 @@ class PinTests(APITestCase):
         response = self.client.post(create_url, data=post_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @mock.patch('requests.get', mock_requests_get)
+    @mock.patch('core.models.fetch_url', mock_fetch_url)
     def test_should_create_pin(self):
         url = 'http://testserver.com/mocked/logo-01.png'
         create_url = reverse("pin-list")
@@ -273,7 +272,7 @@ class PinTests(APITestCase):
         pin = Pin.objects.get(url=url)
         self.assertIsNotNone(pin.image.image)
 
-    @mock.patch('requests.get', mock_requests_get)
+    @mock.patch('core.models.fetch_url', mock_fetch_url)
     def test_post_create_url_with_empty_tags(self):
         url = 'http://testserver.com/mocked/logo-02.png'
         create_url = reverse("pin-list")
@@ -311,7 +310,7 @@ class PinTests(APITestCase):
             response = self.client.post(create_url, data=post_data, format="json")
             self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.json())
 
-    @mock.patch('requests.get')
+    @mock.patch('core.models.fetch_url')
     def test_should_reject_non_http_url_without_fetching(self, mocked_get):
         create_url = reverse("pin-list")
         post_data = {'url': 'javascript:alert(1)//logo.png'}
