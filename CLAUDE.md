@@ -81,7 +81,7 @@ Django apps:
 - **`django_images/`** is a vendored image library. It provides the base `Image` and `Thumbnail` models, MD5-hashed upload paths, and thumbnail generation at the sizes in `IMAGE_SIZES`. Signal handlers delete files on disk when rows are deleted (`IMAGE_AUTO_DELETE`).
 - **`users/`** has the custom `User` model, the login and logout views, and the `users` and `public-users` viewsets, mounted at `/api/v2/profile/`.
   - `users.auth.backends.CombinedAuthBackend` adds email login (emails aren't unique: it logs in only when exactly one account's password matches) and leaves usernames to `ModelBackend`. Registration runs `validate_password`. Logout is POST-only at `/api/v2/profile/logout/`.
-  - `users.middleware.Public` returns 403 to anonymous requests when `PUBLIC=False`, except for `/api/v2/profile/` and `/admin/login/`.
+  - `users.middleware.Public` returns 403 to anonymous requests when `PUBLIC=False`, except for `/api/v2/profile/` and `/admin/login/`. Requests with a valid token (or Basic auth, when enabled) pass too, since DRF only authenticates them later in the view.
   - **API tokens** (`rest_framework.authtoken`): a `post_save` signal creates a token for every user (`create_token_if_necessary`). `UserSerializer.get_token` returns it only when the requester is that user. `manage.py users_reset_tokens` deletes all tokens. Unauthenticated API requests get 401, not 403. See `docs/src/api.md`.
 - **`pinry_plugins/`** is the plugin system.
   - Each class path in `settings.ENABLED_PLUGINS` is instantiated in `builder/_loader.py`.

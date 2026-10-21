@@ -12,7 +12,7 @@ from rest_framework.test import APITestCase
 
 from .auth.backends import CombinedAuthBackend
 from .auth.throttling import LoginRateThrottle
-from .models import User
+from .models import User, create_token_if_necessary
 
 
 def mock_requests_get(url, headers=None):
@@ -260,6 +260,32 @@ class PrivateInstanceTest(TestCase):
         User.objects.create_user(username='jdoe', email='jdoe@example.com', password='password')
         self.client.login(username='jdoe', password='password')
         self.assertEqual(self.client.get('/api/v2/pins/').status_code, 200)
+
+    def test_token_client_can_see_pins(self):
+        user = User.objects.create_user(username='jdoe', email='jdoe@example.com', password='password')
+        token = create_token_if_necessary(user).key
+        response = self.client.get('/api/v2/pins/', HTTP_AUTHORIZATION='Token ' + token)
+        self.assertEqual(response.status_code, 200)
+
+    def test_bad_token_is_blocked(self):
+        response = self.client.get('/api/v2/pins/', HTTP_AUTHORIZATION='Token nope')
+        self.assertEqual(response.status_code, 403)
+
+    def basic(self, password):
+        if not User.objects.filter(username='jdoe').exists():
+            User.objects.create_user(username='jdoe', email='jdoe@example.com', password='password')
+        token = base64.b64encode(('jdoe:%s' % password).encode()).decode()
+        return self.client.get('/api/v2/pins/', HTTP_AUTHORIZATION='Basic ' + token)
+
+    def test_basic_auth_blocked_when_disabled(self):
+        self.assertEqual(self.basic('password').status_code, 403)
+
+    @override_settings(ALLOW_BASIC_AUTH=True)
+    def test_basic_auth_client_can_see_pins_when_enabled(self):
+        cache.clear()
+        self.assertEqual(self.basic('password').status_code, 200)
+        self.assertEqual(self.basic('wrong').status_code, 403)
+        cache.clear()
 
 
 class ProfileViewTest(TestCase):

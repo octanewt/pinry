@@ -35,6 +35,8 @@ HTTP Basic auth (`curl -u user:password`) is off by default. Set `ALLOW_BASIC_AU
 
 Failed password checks are limited per client address (20 an hour by default, from the SPA, the admin login and Basic auth together); past that the login answers `429` with a `Retry-After` header. Change it with `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["login"]` in `local_settings.py`, or set it to `None` to turn it off.
 
+With `PUBLIC = False`, token (and enabled Basic) requests still work; anonymous requests get `403`.
+
 # Other users
 
 Pins and boards embed their owner as `submitter`, and `/api/v2/profile/public-users/?username=<name>` describes any user. Both return only public fields:
