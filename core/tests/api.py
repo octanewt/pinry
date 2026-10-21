@@ -54,6 +54,7 @@ class BoardPrivacyTests(APITestCase):
         )
         self.board_url = reverse("board-detail", kwargs={"pk": self.private_board.pk})
         self.boards_url = reverse("board-list")
+        self.boards_auto_complete_url = reverse("board-auto-complete-list")
 
     def tearDown(self):
         _teardown_models()
@@ -65,18 +66,21 @@ class BoardPrivacyTests(APITestCase):
         pin.save()
         return pin
 
+    def _listed_board_ids(self):
+        boards = self.client.get(self.boards_url).json()["results"]
+        auto_complete = self.client.get(self.boards_auto_complete_url).json()
+        return [b["id"] for b in boards], [b["id"] for b in auto_complete]
+
     def test_should_non_owner_and_anonymous_user_has_no_permission_to_list_private_board(self):
-        resp = self.client.get(self.boards_url)
-        self.assertEqual(len(resp.json()), 0, resp.json())
+        self.assertEqual(self._listed_board_ids(), ([], []))
 
         self.client.login(username=self.non_owner.username, password='password')
-        resp = self.client.get(self.boards_url)
-        self.assertEqual(len(resp.json()), 0, resp.content)
+        self.assertEqual(self._listed_board_ids(), ([], []))
 
     def test_should_owner_has_permission_to_list_private_board(self):
-        self.client.login(username=self.non_owner.username, password='password')
-        resp = self.client.get(self.boards_url)
-        self.assertEqual(len(resp.json()), 0, resp.content)
+        self.client.login(username=self.owner.username, password='password')
+        board_id = self.private_board.id
+        self.assertEqual(self._listed_board_ids(), ([board_id], [board_id]))
 
     def test_should_non_owner_and_anonymous_user_has_no_permission_to_view_private_board(self):
         resp = self.client.get(self.board_url)
@@ -469,9 +473,7 @@ class PrivacyLeakTests(APITestCase):
 
     def test_board_list_should_not_expose_submitter_email(self):
         Board.objects.create(name="board", submitter=self.owner)
-        # reverse("board-list") resolves to boards-auto-complete, which
-        # shares the "board" basename, so use the path directly.
-        resp = self.client.get("/api/v2/boards/")
+        resp = self.client.get(reverse("board-list"))
         submitter = resp.json()["results"][0]["submitter"]
         self.assertEqual(submitter["username"], self.owner.username)
         self.assertNotIn("email", submitter)
