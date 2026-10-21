@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import login
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -43,17 +45,28 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
         write_only=True,
         required=True,
         allow_blank=False,
-        min_length=6,
-        max_length=32,
+        max_length=128,
     )
     password_repeat = serializers.CharField(
         write_only=True,
         required=True,
         allow_blank=False,
-        min_length=6,
-        max_length=32,
+        max_length=128,
     )
     token = serializers.SerializerMethodField(read_only=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if 'password' in attrs:
+            candidate = User(
+                username=attrs.get('username', ''),
+                email=attrs.get('email', ''),
+            )
+            try:
+                validate_password(attrs['password'], user=candidate)
+            except DjangoValidationError as e:
+                raise ValidationError(detail={"password": list(e.messages)})
+        return attrs
 
     def create(self, validated_data):
         if validated_data['password'] != validated_data['password_repeat']:

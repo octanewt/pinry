@@ -43,6 +43,10 @@ IMAGE_SIZES = {
 # Whether people can view pins without login
 PUBLIC = True
 
+# Accept HTTP Basic auth (username and password) on the API. API clients
+# should use a token instead, see docs/src/api.md.
+ALLOW_BASIC_AUTH = False
+
 # Allow pinning images from private/LAN addresses (e.g. http://192.168.1.10/).
 # Only enable this if you trust every account holder: it lets them make the
 # server fetch from internal services.

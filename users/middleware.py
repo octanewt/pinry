@@ -7,10 +7,12 @@ class Public(MiddlewareMixin):
 
     acceptable_paths = (
         "/api/v2/profile/",
+        "/admin/login/",
     )
 
     def process_request(self, request):
         if settings.PUBLIC is False and not request.user.is_authenticated:
-            for path in self.acceptable_paths:
-                if not request.path.startswith(path):
-                    return HttpResponseForbidden()
+            if not any(
+                request.path.startswith(path) for path in self.acceptable_paths
+            ):
+                return HttpResponseForbidden()

@@ -235,7 +235,7 @@ const User = {
     const self = this;
     return new Promise(
       (resolve) => {
-        axios.get('/api-auth/logout/').then(
+        axios.post(`${API_PREFIX}profile/logout/`).then(
           () => {
             storage.set(self.storageKey, null, 1);
             resolve();
