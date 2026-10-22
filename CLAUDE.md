@@ -58,7 +58,7 @@ Keep code compatible with Python 3.7: no walrus operator, no positional-only par
 
 - `manage.py` defaults to `pinry.settings.development` unless `DJANGO_SETTINGS_MODULE` or `--settings` is given. The development settings use SQLite at `db.sqlite3`, set `DEBUG=True` and add `django_extensions`. `manage.py` also sets `settings.IS_TEST = True` whenever `test` is in argv, and when `IS_TEST` is true, `pinry/urls.py` also serves static files.
 - `pinry/settings/base.py` holds the shared config, including `PUBLIC`, `ALLOW_NEW_REGISTRATIONS`, `IMAGE_SIZES`, `IMAGE_PATH`, `IMAGE_AUTO_DELETE` and the DRF config:
-  - Authentication: Basic, Token and Session.
+  - Authentication: Token and Session, plus Basic only when `ALLOW_BASIC_AUTH=True` (`users/auth/throttling.py`). Failed password checks are throttled per client address (`LoginRateThrottle`, rate `DEFAULT_THROTTLE_RATES["login"]`), enforced in `CombinedAuthBackend`.
   - Pagination: LimitOffset, with `PAGE_SIZE=50`.
   - `URL_FIELD_NAME="resource_link"`.
 - `pinry/settings/docker.py` is the production config. It is selected with `ENV DJANGO_SETTINGS_MODULE` in `Dockerfile.autobuild` and `_start_gunicorn.sh`, not with a `--settings` flag. It uses Postgres at host `db`, reads `SECRET_KEY` from the environment, and **requires** a `local_settings.py`. See `local_settings.example.py`.
@@ -80,8 +80,8 @@ Django apps:
   - Multi-tag search is in `core/filters.py` (`TagsFilterBackend`): `/api/v2/pins/?tags=a&tags=b&tags_mode=all|any`, defaulting to `all`. The frontend sends repeated `tags=` keys through `serializeParams` in `api.js`.
 - **`django_images/`** is a vendored image library. It provides the base `Image` and `Thumbnail` models, MD5-hashed upload paths, and thumbnail generation at the sizes in `IMAGE_SIZES`. Signal handlers delete files on disk when rows are deleted (`IMAGE_AUTO_DELETE`).
 - **`users/`** has the custom `User` model, the login and logout views, and the `users` and `public-users` viewsets, mounted at `/api/v2/profile/`.
-  - `users.auth.backends.CombinedAuthBackend` lets users log in with username or email.
-  - `users.middleware.Public` returns 403 to anonymous requests when `PUBLIC=False`, except for `/api/v2/profile/`.
+  - `users.auth.backends.CombinedAuthBackend` adds email login (emails aren't unique: it logs in only when exactly one account's password matches) and leaves usernames to `ModelBackend`. Registration runs `validate_password`. Logout is POST-only at `/api/v2/profile/logout/`.
+  - `users.middleware.Public` returns 403 to anonymous requests when `PUBLIC=False`, except for `/api/v2/profile/` and `/admin/login/`. Requests with a valid token (or Basic auth, when enabled) pass too, since DRF only authenticates them later in the view.
   - **API tokens** (`rest_framework.authtoken`): a `post_save` signal creates a token for every user (`create_token_if_necessary`). `UserSerializer.get_token` returns it only when the requester is that user. `manage.py users_reset_tokens` deletes all tokens. Unauthenticated API requests get 401, not 403. See `docs/src/api.md`.
 - **`pinry_plugins/`** is the plugin system.
   - Each class path in `settings.ENABLED_PLUGINS` is instantiated in `builder/_loader.py`.

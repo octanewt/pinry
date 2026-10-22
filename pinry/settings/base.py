@@ -155,6 +155,10 @@ ALLOW_PRIVATE_URL_FETCH = False
 # Largest image, in bytes, that Pinry will download when pinning by URL.
 MAX_FETCH_BYTES = 50 * 1024 * 1024
 
+# Set to True to accept HTTP Basic auth (username and password on every
+# request) on the API. Off by default; API clients should use a token.
+ALLOW_BASIC_AUTH = False
+
 # Rest Framework
 
 DRF_URL_FIELD_NAME = "resource_link"
@@ -173,8 +177,13 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': API_LIMIT_PER_PAGE,
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.TokenAuthentication',
+        'users.auth.throttling.OptionalBasicAuthentication',
         'rest_framework.authentication.SessionAuthentication',
-    ]
+    ],
+    # Failed password checks per client address, for the login view and
+    # Basic auth. Set to None to disable.
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '20/hour',
+    },
 }

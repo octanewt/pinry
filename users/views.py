@@ -1,18 +1,18 @@
 import json
 
 from django.conf import settings
-from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect, HttpResponseBadRequest, HttpResponse
+from django.http import HttpResponseBadRequest, HttpResponse
 from django.urls import reverse
 from django.utils.functional import lazy
+from django.views.decorators.http import require_POST
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, routers
 from rest_framework.permissions import BasePermission
 from rest_framework.renderers import JSONRenderer
 from rest_framework.viewsets import GenericViewSet
 
+from users.auth.throttling import LoginRateThrottle
 from users.serializers import PublicUserSerializer, UserSerializer
 from users.models import User
 
@@ -61,6 +61,7 @@ class UserViewSet(
         return User.objects.filter(id=self.request.user.id)
 
 
+@require_POST
 def login_user(request):
     try:
         data = json.loads(request.body)
@@ -74,6 +75,17 @@ def login_user(request):
         return HttpResponseBadRequest(
             json.dumps({"password": "this field is required"})
         )
+    throttle = LoginRateThrottle()
+    if not throttle.allow_request(request):
+        response = HttpResponse(
+            json.dumps(
+                {"password": "Too many failed logins, please try again later"}
+            ),
+            status=429,
+            content_type="application/json",
+        )
+        response["Retry-After"] = "%d" % throttle.wait()
+        return response
     user = authenticate(
         request,
         username=data['username'],
@@ -94,11 +106,10 @@ def login_user(request):
     )
 
 
-@login_required
+@require_POST
 def logout_user(request):
     logout(request)
-    messages.success(request, 'You have successfully logged out.')
-    return HttpResponseRedirect('/')
+    return HttpResponse(status=204)
 
 
 drf_router = routers.DefaultRouter()

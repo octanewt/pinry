@@ -34,15 +34,6 @@ class OwnerOnlyIfPrivate(permissions.BasePermission):
         return True
 
 
-class OwnerOnly(permissions.IsAuthenticatedOrReadOnly):
-
-    def has_permission(self, request, view):
-        return request.user.is_authenticated()
-
-    def has_object_permission(self, request, view, obj):
-        return obj.owner == request.user
-
-
 class SuperUserOnly(permissions.BasePermission):
     """
     The request is authenticated as a user, or is a read-only request.
