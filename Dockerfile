@@ -6,7 +6,7 @@ COPY . /app
 # config nodejs
 RUN curl -L https://raw.githubusercontent.com/tj/n/master/bin/n -o n
 RUN bash n 18
-RUN npm -g install pnpm
+RUN npm -g install pnpm@10
 
 WORKDIR /app
 RUN pip install poetry

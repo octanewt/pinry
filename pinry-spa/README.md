@@ -4,7 +4,7 @@
 This project requires `NodeJS@18`.
 
 ```
-npm install -g "pnpm==9.11.0"
+npm install -g pnpm@10
 pnpm install
 ```
 

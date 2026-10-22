@@ -15,7 +15,7 @@ To install these is pretty simple, you can just run:
 
     cd pinry
     pip install poetry
-    npm install -g pnpm
+    npm install -g pnpm@10
 
 After that you can install this project with:
 

@@ -15,6 +15,7 @@ DEBUG = False
 TEMPLATE_DEBUG = DEBUG
 
 # SECURITY WARNING: use your actual domain name in production!
+# The ALLOWED_HOSTS environment variable (comma separated), if set, wins.
 ALLOWED_HOSTS = ['*']
 
 # Database
@@ -55,6 +56,7 @@ ALLOW_PRIVATE_URL_FETCH = False
 # Largest image, in bytes, downloaded when pinning by URL
 MAX_FETCH_BYTES = 50 * 1024 * 1024
 
+# Plugins to load, see docs/src/plugin-system.md
 ENABLED_PLUGINS = [
-    'pinry_plugins.batteries.plugin_example.Plugin',
+    # 'pinry_plugins.batteries.plugin_example.Plugin',
 ]

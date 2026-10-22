@@ -90,6 +90,41 @@ ALLOW_PRIVATE_URL_FETCH = True
 The size limit can be changed with `MAX_FETCH_BYTES` (in bytes). The default
 matches the 50 MB upload limit in the bundled nginx config.
 
+### Host names, HTTPS and the secret key
+These are read from environment variables, passed with `docker run -e`:
+
+```
+sudo docker run -d=true -p=80:80 \
+    -e ALLOWED_HOSTS=pins.example.com \
+    -e HTTPS=true \
+    -v=${DATA_PATH}:/data \
+    getpinry/pinry
+```
+
++ `ALLOWED_HOSTS`: comma separated host names (or IP addresses) your instance
+  is reached at, e.g. `pins.example.com,192.168.1.10`. Requests for any other
+  `Host` are refused. If it is not set, the value in `/data/local_settings.py`
+  is used, which is `['*']` (any host) and logs a warning at startup.
++ `CSRF_TRUSTED_ORIGINS`: comma separated host names, without `https://`,
+  allowed to submit forms to Pinry over HTTPS from another origin. Usually
+  not needed.
++ `HTTPS=true`: set this when a reverse proxy serves Pinry over HTTPS and
+  sets the `X-Forwarded-Proto` header. Login and CSRF cookies are then only
+  sent over HTTPS. Leave it unset for plain-HTTP installs, or logins will stop
+  working.
++ `HSTS_SECONDS`: how long browsers should refuse plain HTTP for your site,
+  e.g. `31536000` for a year. Only set it once HTTPS works, because browsers
+  remember it. Defaults to `0` (off).
++ `SECRET_KEY`: the first start writes a generated key into
+  `/data/local_settings.py`, which wins over this variable. Pinry refuses to
+  start if neither has a real key.
+
+### Images are public
+Image files under `/media` are served by nginx without a login check, even
+with `PUBLIC = False` or on private boards. Anyone who has an image's URL can
+open it. The URLs contain a hash, so they are hard to guess, but don't rely on
+Pinry to keep the images themselves secret.
+
 ## Building docker-pinry again (with latest version)
 
 

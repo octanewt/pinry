@@ -21,6 +21,19 @@ git tag
 The first line of output is our latest version of code.
 
 
+# Deployment hardening (unreleased)
++ The Docker image now runs `migrate` on every start, so new migrations are
+  applied after an upgrade.
++ Pinry refuses to start if `SECRET_KEY` is unset or still a placeholder.
+  The Docker image's generated `/data/local_settings.py` already has one.
++ `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `HTTPS` and `HSTS_SECONDS` can be
+  set as environment variables, see [Install with Docker](install-with-docker.md).
+  Setting `ALLOWED_HOSTS` is recommended.
++ New installs no longer enable the example plugin. Existing
+  `/data/local_settings.py` files are not changed; remove
+  `pinry_plugins.batteries.plugin_example.Plugin` from `ENABLED_PLUGINS` there
+  if you don't use it.
+
 # v2.1.6 -> v2.1.7
 v2.1.6 has a security issue which may cause unauthorized token-read.
 If you upgrade your instance from v2.1.6 to v2.1.7, you could go into 
