@@ -1,6 +1,6 @@
 [project]
 name = "pinry"
-version = "2.1.9"
+version = "3.0.0"
 description = "Pinry, a tiling image board system for people who want to save, tag, and share images, videos and webpages in an easy to skim through format. It's open-source and self-hosted."
 authors = [{name = "winkidney", email = "winkidney@gmail.com"}]
 license = "BSD-2-Clause"

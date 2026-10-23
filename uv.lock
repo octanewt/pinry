@@ -728,7 +728,7 @@ wheels = [
 
 [[package]]
 name = "pinry"
-version = "2.1.9"
+version = "3.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "dj-database-url" },
