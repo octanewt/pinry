@@ -2,31 +2,31 @@
 
 Pinry currently has two major requirements:
 
-- Python@3.6+
+- Python@3.12+
 - NodeJS@18
 
 For minor requirements you need two have installed two package managers that
 are not the defaults for these languages:
 
-- Python, poetry
+- Python, uv
 - NodeJS, pnpm
 
 To install these is pretty simple, you can just run:
 
     cd pinry
-    pip install poetry
+    pip install uv    # or see https://docs.astral.sh/uv/
     npm install -g pnpm@10
 
 After that you can install this project with:
 
-    poetry install
+    uv sync
     cd pinry-spa; pnpm install
 
 You will need to run two separate items as of right now, the SPA and the
 backend:
 
-    poetry run python manage.py migrate
-    poetry run python manage.py runserver
+    uv run python manage.py migrate
+    uv run python manage.py runserver
 
 And from another terminal:
 
@@ -42,7 +42,7 @@ recommend using our tags/versions though.
 
 To run Pinry's tests inside the Pinry repo run:
 
-    poetry run python manage.py test
+    uv run python manage.py test
 
 # Docker
 

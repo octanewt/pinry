@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.db.models import Q
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from urllib.parse import urlparse
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -96,6 +98,7 @@ class TagSerializer(serializers.SlugRelatedField):
         return obj
 
 
+@extend_schema_field(OpenApiTypes.INT)
 class ReusableImageField(serializers.PrimaryKeyRelatedField):
     """
     Accept an image only if it is a fresh upload that no pin uses yet, or is
@@ -164,7 +167,7 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
                     validated_data.get('referer', url),
                 )
             except FetchError as e:
-                raise ValidationError({"url": str(e)})
+                raise ValidationError({"url": str(e)}) from e
             if not image:
                 raise ValidationError({"url": "invalid image content"})
         else:
@@ -172,15 +175,15 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
         tags = validated_data.pop('tag_list', [])
         pin = Pin.objects.create(submitter=submitter, image=image, **validated_data)
         if tags:
-            pin.tags.set(*tags)
+            pin.tags.set(tags)
         return pin
 
     def update(self, instance, validated_data):
         tags = validated_data.pop('tag_list', None)
         if tags:
-            instance.tags.set(*tags)
+            instance.tags.set(tags)
         else:
-            instance.tags.set()
+            instance.tags.clear()
         # change for image-id or image is not allowed
         validated_data.pop('image_by_id', None)
         return super(PinSerializer, self).update(instance, validated_data)
@@ -244,13 +247,14 @@ class BoardSerializer(serializers.HyperlinkedModelSerializer):
         help_text="only patch method works for this field"
     )
 
-    def get_total_pins(self, instance):
+    def get_total_pins(self, instance) -> int:
         query = instance.pins.all()
         request = self.context['request']
         query = filter_private_pin(request, query)
         return query.count()
 
-    def get_cover(self, instance: Board) -> dict or None:
+    @extend_schema_field(PinSerializer(allow_null=True))
+    def get_cover(self, instance: Board):
         pin = filter_private_pin(
             self.context['request'], instance.pins.all(),
         ).first()

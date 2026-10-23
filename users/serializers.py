@@ -65,7 +65,9 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             try:
                 validate_password(attrs['password'], user=candidate)
             except DjangoValidationError as e:
-                raise ValidationError(detail={"password": list(e.messages)})
+                raise ValidationError(
+                    detail={"password": list(e.messages)}
+                ) from e
         return attrs
 
     def create(self, validated_data):
@@ -89,7 +91,7 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
         )
         return user
 
-    def get_token(self, obj: User):
+    def get_token(self, obj: User) -> str | None:
         if self.context['request'].user == obj:
             return create_token_if_necessary(obj).key
         return None

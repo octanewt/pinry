@@ -1,5 +1,3 @@
-import coreapi
-import coreschema
 import django_filters
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import BaseFilterBackend
@@ -55,26 +53,23 @@ class TagsFilterBackend(BaseFilterBackend):
             queryset = queryset.filter(tags__name=tag)
         return queryset
 
-    def get_schema_fields(self, view):
+    def get_schema_operation_parameters(self, view):
         return [
-            coreapi.Field(
-                name=self.tags_param,
-                required=False,
-                location="query",
-                schema=coreschema.Array(
-                    title="Tags",
-                    description="Tag name, repeat the parameter for several tags",
-                ),
-            ),
-            coreapi.Field(
-                name=self.mode_param,
-                required=False,
-                location="query",
-                schema=coreschema.Enum(
-                    self.modes,
-                    title="Tags mode",
-                    description="'all' (default): pins with every tag; "
-                                "'any': pins with at least one tag",
-                ),
-            ),
+            {
+                "name": self.tags_param,
+                "required": False,
+                "in": "query",
+                "description": "Tag name, repeat the parameter for several tags",
+                "schema": {"type": "array", "items": {"type": "string"}},
+                "style": "form",
+                "explode": True,
+            },
+            {
+                "name": self.mode_param,
+                "required": False,
+                "in": "query",
+                "description": "'all' (default): pins with every tag; "
+                               "'any': pins with at least one tag",
+                "schema": {"type": "string", "enum": list(self.modes)},
+            },
         ]

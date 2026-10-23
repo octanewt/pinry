@@ -5,7 +5,7 @@ from django.core.cache import cache
 from django.test import Client, TestCase
 from django.test.utils import override_settings
 
-import mock
+from unittest import mock
 from django.urls import reverse
 from rest_framework.reverse import reverse as drf_reverse
 from rest_framework.test import APITestCase

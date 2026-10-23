@@ -118,10 +118,10 @@ def resolve(host, port):
     """Return the addresses to connect to, refusing any non-public one."""
     try:
         infos = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
-    except (socket.gaierror, UnicodeError):
-        raise FetchError("Could not fetch the image.")
+    except (socket.gaierror, UnicodeError) as e:
+        raise FetchError("Could not fetch the image.") from e
     addresses = []
-    for family, _, _, _, sockaddr in infos:
+    for _family, _, _, _, sockaddr in infos:
         # Drop an IPv6 zone id ("fe80::1%eth0") before parsing.
         address = sockaddr[0].split("%")[0]
         if not _private_fetch_allowed() and not is_public_address(address):
@@ -158,10 +158,10 @@ class _CheckedConnectionMixin(object):
                 sock = urllib3_connection.create_connection(
                     (address, self.port), timeout, **extra_kw
                 )
-            except socket.timeout:
+            except socket.timeout as e:
                 raise ConnectTimeoutError(
                     self, "Connection to %s timed out." % self.host
-                )
+                ) from e
             except socket.error as e:
                 last_error = e
                 continue

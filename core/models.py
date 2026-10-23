@@ -113,7 +113,6 @@ class Image(BaseImage):
 class Board(models.Model):
     class Meta:
         unique_together = ("submitter", "name")
-        index_together = ("submitter", "name")
 
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=128, blank=False, null=False)
@@ -136,7 +135,7 @@ class Pin(models.Model):
     def tag_list(self):
         return self.tags.all()
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.submitter, self.published)
 
 

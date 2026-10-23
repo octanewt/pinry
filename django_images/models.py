@@ -1,6 +1,7 @@
 import hashlib
 import os.path
 
+from django.conf import settings
 from django.db import models
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.dispatch import receiver
@@ -49,6 +50,17 @@ class Image(models.Model):
                               max_length=255)
     height = models.PositiveIntegerField(default=0, editable=False)
     width = models.PositiveIntegerField(default=0, editable=False)
+    # Who uploaded the file, so an image no pin uses yet can only be
+    # claimed by its uploader (issue #6). Not filled in yet.
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, editable=False,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+    # SHA-256 of the file, for finding duplicate uploads (issue #8).
+    # Not filled in yet.
+    sha256 = models.CharField(
+        max_length=64, blank=True, default='', editable=False, db_index=True,
+    )
 
     def get_by_size(self, size):
         return self.thumbnail_set.get(size=size)
@@ -84,7 +96,7 @@ class ThumbnailManager(models.Manager):
                     image.image,
                     [IMAGE_SIZES[size] for size in sizes_to_create])
             ]
-            for size, buf in zip(sizes_to_create, bufs):
+            for size, buf in zip(sizes_to_create, bufs, strict=True):
                 # and save to storage
                 original_dir, original_file = os.path.split(image.image.name)
                 thumb_file = InMemoryUploadedFile(buf, "image", original_file,

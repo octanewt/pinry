@@ -29,7 +29,7 @@ class OwnerOnlyIfPrivate(permissions.BasePermission):
         return self
 
     def has_object_permission(self, request, view, obj):
-        if getattr(obj, "private"):
+        if obj.private:
             return request.user == getattr(obj, self.__owner_field_name)
         return True
 

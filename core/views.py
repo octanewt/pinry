@@ -37,7 +37,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     serializer_class = api.BoardSerializer
     filter_backends = (DjangoFilterBackend, OrderingFilter, SearchFilter)
     search_fields = ("name", )
-    filter_fields = ("submitter__username", )
+    filterset_fields = ("submitter__username", )
     ordering_fields = ('-id', )
     ordering = ('-id', )
     permission_classes = [IsOwnerOrReadOnly("submitter"), OwnerOnlyIfPrivate("submitter")]
@@ -52,7 +52,7 @@ class BoardAutoCompleteViewSet(
 ):
     serializer_class = api.BoardAutoCompleteSerializer
     filter_backends = (DjangoFilterBackend, OrderingFilter)
-    filter_fields = ("submitter__username", )
+    filterset_fields = ("submitter__username", )
     ordering_fields = ('-id', )
     ordering = ('-id', )
     pagination_class = None
