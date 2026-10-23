@@ -8,7 +8,7 @@ IMAGE_VERSION_TAG=`git tag -l --sort=-creatordate | head -n 1 | sed "s/v//g"`
 sudo docker buildx build \
   --no-cache \
   --push \
-  --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
+  --platform linux/amd64,linux/arm64 \
   -t getpinry/pinry:${IMAGE_LATEST_TAG} \
   -t getpinry/pinry:${IMAGE_VERSION_TAG} \
   "${script_dir}/../" \

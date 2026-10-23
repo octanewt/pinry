@@ -35,3 +35,6 @@ db.sqlite3
 LICENSE.md
 README.md
 .env
+data/
+postgres-data/
+.venv

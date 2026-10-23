@@ -1,7 +1,9 @@
 dev-docker-serve:
-	docker-compose up web
-dev-docker-build-frontend:
-	docker-compose up build_frontend
+	docker compose -f docker-compose.dev.yml up --build
+docker-build:
+	docker build -f Dockerfile.autobuild -t pinry:local .
+docker-smoke-test: docker-build
+	./docker/tests/smoke.sh pinry:local
 backup-images:
 	uv run python manage.py dumpdata django_images > db-backup.django_images.json
 backup-all:
@@ -23,11 +25,8 @@ serve-gunicorn:
 	uv run gunicorn pinry.wsgi -b 0.0.0.0:8000 -w 4 --capture-output --timeout 30 --user www-data --group www-data
 serve:
 	uv run python manage.py runserver 0.0.0.0:8000
-export-requirements:
-	uv export --frozen --no-dev --no-emit-project -o requirements.txt
 lock:
 	uv lock
-	make export-requirements
 install:
 	uv sync
 test:
