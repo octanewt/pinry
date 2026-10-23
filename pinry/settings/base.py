@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_filters',
     'drf_spectacular',
+    'drf_spectacular_sidecar',
     'taggit',
     'django_images',
     'core',
@@ -219,4 +220,8 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Pinry API',
     'SERVE_INCLUDE_SCHEMA': False,
+    # Serve Swagger UI from /static, not a CDN, so the docs work offline.
+    'SWAGGER_UI_DIST': 'SIDECAR',
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'REDOC_DIST': 'SIDECAR',
 }

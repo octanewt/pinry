@@ -51,6 +51,9 @@ class SchemaTests(APITestCase):
     def test_docs_page_should_load(self):
         resp = self.client.get(reverse("api-docs"))
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        # Swagger UI is served locally, so the page works without internet.
+        self.assertNotIn(b"cdn.jsdelivr.net", resp.content)
+        self.assertIn(b"/static/drf_spectacular_sidecar/", resp.content)
 
 
 class BoardFilterTests(APITestCase):
