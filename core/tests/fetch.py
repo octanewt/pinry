@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, urlparse
 
-import mock
+from unittest import mock
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from rest_framework import status

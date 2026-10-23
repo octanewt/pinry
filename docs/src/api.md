@@ -2,6 +2,8 @@
 
 Pinry support API accessing via token so that you could write your own client or import any pin format to your instance.
 
+The API is described by an OpenAPI 3 schema at `/api/v2/schema/`, with an interactive browser for it at `/api/v2/docs/`.
+
 # Get Token
 Just go to `My -> Profile` page to get the token.
 
@@ -31,11 +33,11 @@ You will get response like this:
 
 The SPA uses a session: `POST /api/v2/profile/login/` with a JSON body of `username` (or email) and `password`, and `POST /api/v2/profile/logout/` to log out. Both need the `X-CSRFToken` header. Logging out with `GET` is not supported.
 
-HTTP Basic auth (`curl -u user:password`) is off by default. Set `ALLOW_BASIC_AUTH = True` in `local_settings.py` to turn it on; a token is the better choice for scripts.
+HTTP Basic auth (`curl -u user:password`) is off by default. Set the environment variable `ALLOW_BASIC_AUTH=true` to turn it on; a token is the better choice for scripts.
 
-Failed password checks are limited per client address (20 an hour by default, from the SPA, the admin login and Basic auth together); past that the login answers `429` with a `Retry-After` header. Change it with `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["login"]` in `local_settings.py`, or set it to `None` to turn it off.
+Failed password checks are limited per client address (20 an hour by default, from the SPA, the admin login and Basic auth together); past that the login answers `429` with a `Retry-After` header. Change it with the `LOGIN_THROTTLE_RATE` environment variable (for example `50/hour`), or set it to `off` to turn it off.
 
-With `PUBLIC = False`, token (and enabled Basic) requests still work; anonymous requests get `403`.
+With `PUBLIC=false`, token (and enabled Basic) requests still work; anonymous requests get `403`.
 
 # Other users
 

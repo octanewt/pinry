@@ -10,8 +10,6 @@
 # -----------------------------------------------------------------------------
 PROJECT_ROOT="/pinry"
 
-bash ${PROJECT_ROOT}/docker/scripts/bootstrap.sh
-
 # If static files don't exist collect them
 cd ${PROJECT_ROOT}
 python manage.py collectstatic --noinput
