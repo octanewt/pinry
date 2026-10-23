@@ -132,7 +132,7 @@ export default {
     padding-right: 2rem;
   }
   .filter-selector {
-    background-color: white;
+    background-color: var(--pinry-card-background);
     border-radius: 3px;
     .search-input {
       width: 100%;

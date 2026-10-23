@@ -17,12 +17,15 @@ import {
 } from 'buefy';
 import 'buefy/dist/css/buefy.css';
 import '@mdi/font/css/materialdesignicons.css';
+import './components/utils/theme.scss';
 import App from './App.vue';
 import router from './router';
 import i18n from './components/utils/i18n';
 import setUpAxiosCsrfConfig from './components/utils/csrf';
+import { initTheme } from './components/utils/theme';
 
 setUpAxiosCsrfConfig();
+initTheme();
 
 const app = createApp(App);
 app.use(router);

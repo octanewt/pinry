@@ -81,5 +81,9 @@
   "imageSourceLabel": "图片来源",
   "tagsLabel": "标签",
   "descriptionLabel": "描述",
-  "selectBoardLabel": "选择画板"
+  "selectBoardLabel": "选择画板",
+  "themeMenuTitle": "主题",
+  "themeLightOption": "浅色",
+  "themeDarkOption": "深色",
+  "themeSystemOption": "跟随系统"
 }

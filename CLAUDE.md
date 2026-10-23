@@ -101,7 +101,7 @@ Frontend (`pinry-spa/src/`):
   - Cross-component refreshes go through the mitt bus in `components/utils/bus.js` (`bus.bus.on/off/emit`). Remove listeners and the scroll handler in `beforeUnmount`.
   - Pin and board grids use `MasonryWall`, which only notices a new `items` array: assign a new array, never push into it.
   - Only the Buefy components registered in `main.js` are available; register a new one there before using it.
-  - The page is pinned to Bulma's light theme (`data-theme="light"` in `index.html`) because the custom pin card styles are light only.
+  - **Theme**: light, dark or system (the default, which follows the OS). `public/theme-init.js` sets `data-theme` on `<html>` before the app loads, and `components/utils/theme.js` (`setTheme`, the navbar switch) changes it; the choice is saved in local storage under `theme`. Bulma themes its own components. Pinry's own styles use the `--pinry-*` CSS variables in `components/utils/theme.scss`, never hard-coded colours, so both themes work. The pin preview modal is dark in both themes on purpose.
 
 ## Tests
 

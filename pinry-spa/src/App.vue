@@ -12,7 +12,7 @@ export default {
 
 <style lang="scss">
   html {
-    background-color: #F5F5EB;
+    background-color: var(--pinry-page-background);
   }
   .body {
     font-family: 'Open Sans', sans-serif;

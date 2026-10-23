@@ -31,7 +31,6 @@
                 <li :class="trueFalse2Class(inPins)">
                   <a @click="go2UserPins">
                     <b-icon
-                      type="is-dark"
                       icon="image"
                       custom-size="mdi-24px">
                     </b-icon>
@@ -41,7 +40,6 @@
                 <li :class="trueFalse2Class(inBoard)">
                   <a @click="go2UserBoard">
                     <b-icon
-                      type="is-dark"
                       icon="folder-multiple-image"
                       custom-size="mdi-24px">
                     </b-icon>
@@ -51,7 +49,6 @@
                 <li :class="trueFalse2Class(inProfile)">
                   <a @click="go2UserProfile">
                     <b-icon
-                      type="is-dark"
                       icon="account"
                       custom-size="mdi-24px">
                     </b-icon>
@@ -156,7 +153,7 @@ export default {
   margin-top: 2rem;
   margin-left: auto;
   margin-right: auto;
-  box-shadow: 5px 5px 2px 1px rgba(0, 0, 255, .1);
+  box-shadow: var(--pinry-panel-shadow);
 }
 @include screen-grid-layout("#user-home-container");
 </style>

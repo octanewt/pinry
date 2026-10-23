@@ -4,7 +4,8 @@
       <div class="container">
         <div class="navbar-brand">
           <a class="navbar-item" href="/">
-            <img src="../assets/logo-dark.png" height="28">
+            <img src="../assets/logo-dark.png" class="pinry-logo-on-light" height="28" alt="Pinry">
+            <img src="../assets/logo-light.png" class="pinry-logo-on-dark" height="28" alt="Pinry">
           </a>
           <a role="button" class="navbar-burger burger"
              aria-label="menu" :aria-expanded="active ? 'true' : 'false'"
@@ -83,7 +84,6 @@
               :to="{ name: 'search' }"
               class="navbar-item">
               <b-icon
-                type="is-dark"
                 icon="magnify"
                 custom-size="mdi-24px">
               </b-icon>
@@ -92,7 +92,6 @@
               class="navbar-item has-dropdown is-hoverable">
               <a class="navbar-link">
                 <b-icon
-                  type="is-dark"
                   icon="translate"
                   custom-size="mdi-24px">
                 </b-icon>
@@ -104,6 +103,25 @@
                   @click="setLocale(locale)"
                   class="navbar-item">
                   {{ langs[locale] }}
+                </a>
+              </div>
+            </div>
+            <div
+              class="navbar-item has-dropdown is-hoverable">
+              <a class="navbar-link" :title="$t('themeMenuTitle')" :aria-label="$t('themeMenuTitle')">
+                <b-icon
+                  icon="theme-light-dark"
+                  custom-size="mdi-24px">
+                </b-icon>
+              </a>
+              <div class="navbar-dropdown">
+                <a
+                  v-for="option in themes"
+                  :key="`theme-${option}`"
+                  @click="chooseTheme(option)"
+                  class="navbar-item"
+                  :class="{ 'is-active': theme === option }">
+                  {{ $t(themeLabels[option]) }}
                 </a>
               </div>
             </div>
@@ -138,6 +156,7 @@
 
 <script>
 import { langCode2Name, setLocale } from '@/components/utils/i18n';
+import { themes, getTheme, setTheme } from '@/components/utils/theme';
 import api from './api';
 import modals from './modals';
 
@@ -151,6 +170,13 @@ export default {
         meta: {},
       },
       langs: langCode2Name,
+      themes,
+      themeLabels: {
+        light: 'themeLightOption',
+        dark: 'themeDarkOption',
+        system: 'themeSystemOption',
+      },
+      theme: getTheme(),
     };
   },
   computed: {
@@ -162,6 +188,10 @@ export default {
   },
   methods: {
     setLocale,
+    chooseTheme(theme) {
+      setTheme(theme);
+      this.theme = theme;
+    },
     toggleMenu() {
       this.active = !this.active;
     },
