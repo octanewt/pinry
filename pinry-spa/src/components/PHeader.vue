@@ -7,9 +7,10 @@
             <img src="../assets/logo-dark.png" height="28">
           </a>
           <a role="button" class="navbar-burger burger"
-             aria-label="menu" aria-expanded="false"
+             aria-label="menu" :aria-expanded="active ? 'true' : 'false'"
              v-on:click="toggleMenu"
              data-target="PinryNav">
+            <span aria-hidden="true"></span>
             <span aria-hidden="true"></span>
             <span aria-hidden="true"></span>
             <span aria-hidden="true"></span>
@@ -136,7 +137,7 @@
 </template>
 
 <script>
-import localeUtils from '@/components/utils/i18n';
+import { langCode2Name, setLocale } from '@/components/utils/i18n';
 import api from './api';
 import modals from './modals';
 
@@ -149,7 +150,7 @@ export default {
         loggedIn: false,
         meta: {},
       },
-      langs: localeUtils.langCode2Name,
+      langs: langCode2Name,
     };
   },
   computed: {
@@ -160,10 +161,7 @@ export default {
     },
   },
   methods: {
-    setLocale(locale) {
-      this.$i18n.locale = locale;
-      localStorage.setItem('localeCode', locale);
-    },
+    setLocale,
     toggleMenu() {
       this.active = !this.active;
     },
@@ -215,7 +213,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-
-</style>

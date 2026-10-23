@@ -14,7 +14,7 @@ import Boards from '../components/Boards.vue';
 import SearchPanel from '../components/search/SearchPanel.vue';
 
 export default {
-  name: 'Search',
+  name: 'SearchView',
   data() {
     return {
       pinFilters: null,

@@ -18,7 +18,7 @@
             v-bind:placeholder="$t('selectFilterPlaceholder')"
             icon="magnify"
             @typing="text => tagText = text">
-            <template slot="empty">{{ $t("noResultsFound") }}</template>
+            <template #empty>{{ $t("noResultsFound") }}</template>
           </b-taginput>
           <b-select v-show="filterType === 'Tag'" v-model="tagsMode">
             <option value="all">{{ $t("SearchPanelTagsModeAllOption") }}</option>
@@ -48,6 +48,7 @@ import api from '../api';
 
 export default {
   name: 'FilterSelector',
+  emits: ['selected'],
   data() {
     return {
       filterType: null,

@@ -198,7 +198,7 @@ const User = {
             resolve(resp.data);
           },
           (error) => {
-            console.log('Failed to sign up due to unexpected error:', error);
+            console.error('Failed to sign up due to unexpected error:', error);
             reject(error.response);
           },
         );
@@ -224,7 +224,7 @@ const User = {
             resolve(resp.data);
           },
           (error) => {
-            console.log('Failed to log in due to unexpected error:', error);
+            console.error('Failed to log in due to unexpected error:', error);
             reject(error.response);
           },
         );

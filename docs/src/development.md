@@ -3,7 +3,7 @@
 Pinry currently has two major requirements:
 
 - Python@3.12+
-- NodeJS@18
+- NodeJS@26
 
 For minor requirements you need two have installed two package managers that
 are not the defaults for these languages:
@@ -15,7 +15,7 @@ To install these is pretty simple, you can just run:
 
     cd pinry
     pip install uv    # or see https://docs.astral.sh/uv/
-    npm install -g pnpm@10
+    npm install -g pnpm@12
 
 After that you can install this project with:
 
@@ -31,6 +31,11 @@ backend:
 And from another terminal:
 
     cd pinry-spa; pnpm serve
+
+The SPA is built with Vite. Its dev server runs on http://localhost:5173 and
+proxies `/api`, `/admin`, `/media` and `/static` to the Django server on
+port 8000. Before sending a change, run `pnpm lint` and `pnpm build` in
+`pinry-spa`, which is what CI runs.
 
 
 ## Testing

@@ -11,7 +11,7 @@ This repository is `octanewt/pinry`, a fork of `pinry/pinry` (upstream). Open pu
 Pinry is a self-hosted, Pinterest-style image board. It has two parts:
 
 - **Backend**: Django 5.2 LTS (`django>=5.2,<5.3`) with Django REST Framework, on Python 3.12+. It serves a JSON API under `/api/v2/` and the Django admin. Dependencies are managed with **uv** (`pyproject.toml`, `uv.lock`). `requirements.txt` is exported from the lock (`make export-requirements`) for the Docker build; CI installs from `uv.lock`.
-- **Frontend**: a Vue 2 single-page app in `pinry-spa/` (Buefy, vue-router, vue-masonry, vue-i18n, axios). It is built with Vue CLI 4 and managed with **pnpm** (`pnpm-lock.yaml`).
+- **Frontend**: a Vue 3 single-page app in `pinry-spa/` (Buefy 3 on Bulma 1, vue-router 5, vue-i18n 11, @yeger/vue-masonry-wall, axios), written in JavaScript with the Options API. It is built with Vite and managed with **pnpm** 12 (`pnpm-lock.yaml`; `pnpm-workspace.yaml` lists which dependencies may run build scripts).
 
 The backend does not render the app's pages; the SPA does all UI. In production (Docker), nginx serves `pinry-spa/dist` for `/`, serves `/static` and `/media` from `/data/static`, and proxies `/api` and `/admin` to gunicorn.
 
@@ -32,23 +32,21 @@ uv run python manage.py spectacular --validate --file schema.yml   # check the O
 uv run mkdocs serve                         # make docs-serve (docs in docs/src)
 ```
 
-Frontend (from `pinry-spa/`, Node 18):
+Frontend (from `pinry-spa/`, Node 26):
 
 ```sh
 pnpm install
-pnpm serve    # dev server; proxies /api, /media, /static/js/ to 127.0.0.1:8000
+pnpm serve    # Vite dev server on :5173; proxies /api, /admin, /media, /static to 127.0.0.1:8000
 pnpm build    # production build into pinry-spa/dist (CI runs this)
-pnpm lint     # ESLint, airbnb + plugin:vue config
+pnpm lint     # ESLint 10 flat config (eslint.config.js): eslint-plugin-vue + @stylistic
 ```
-
-The npm scripts set `NODE_OPTIONS=--openssl-legacy-provider`, which Vue CLI 4 needs on Node 18.
 
 For local development, run `manage.py runserver` and `pnpm serve` at the same time.
 
 CI (`.github/workflows/`) does the following:
 
 - **Backend:** runs `uv sync --locked`, checks `requirements.txt` matches the lock, then flake8, `makemigrations --check` and the Django tests on Python 3.12, 3.13 and 3.14.
-- **Frontend:** runs `pnpm install && pnpm build` on Node 18.
+- **Frontend:** runs `pnpm install --frozen-lockfile`, `pnpm lint` and `pnpm build` on Node 26.
 
 Keep code compatible with Python 3.12 (the `requires-python` floor). When you change dependencies in `pyproject.toml`, run `make lock` so `uv.lock` and `requirements.txt` stay in step; CI fails if they differ.
 
@@ -96,7 +94,13 @@ Frontend (`pinry-spa/src/`):
 - `router/index.js` defines the routes, which map to `views/` (`Pins4Board`, `Pins4Tag`, `Pins4User`, `Profile4User`, `Search`, ...). Reusable UI lives in `components/`:
   - Editors and modals are under `components/editors/` and `components/pin_edit/`.
   - The profile and API-token UI is in `components/user/`.
-- **i18n**: user-facing strings go through vue-i18n (`$t(...)`). The locale files are `components/utils/i18n/locales/{en,zh,fr}.json`, registered in `components/utils/i18n/index.js`. When you add a string, add its key to `en.json` at minimum, and to the other locales when you can. The chosen language is saved in local storage.
+- **i18n**: user-facing strings go through vue-i18n (`$t(...)`, composition mode with global injection). The locale files are `components/utils/i18n/locales/{en,zh,fr}.json`, registered in `components/utils/i18n/index.js`, which also exports `setLocale`. When you add a string, add its key to `en.json` at minimum, and to the other locales when you can. The chosen language is saved in local storage.
+- **Vue 3 specifics**:
+  - Modals open through `components/modals.js` (`$buefy.modal.open`). A modal's component closes itself with `$emit('close')` and declares its events in `emits`; the `events` option maps to its listeners.
+  - Cross-component refreshes go through the mitt bus in `components/utils/bus.js` (`bus.bus.on/off/emit`). Remove listeners and the scroll handler in `beforeUnmount`.
+  - Pin and board grids use `MasonryWall`, which only notices a new `items` array: assign a new array, never push into it.
+  - Only the Buefy components registered in `main.js` are available; register a new one there before using it.
+  - The page is pinned to Bulma's light theme (`data-theme="light"` in `index.html`) because the custom pin card styles are light only.
 
 ## Tests
 
@@ -111,7 +115,7 @@ Frontend (`pinry-spa/src/`):
 - flake8-bugbear is installed, so the `B` checks run (B950 is ignored, like E501). No formatter is enforced; match the style of the surrounding code.
 - Tests use `unittest.mock`.
 - After changing models, generate migrations with `manage.py makemigrations` and commit them. Don't hand-edit existing migrations. The migration history was reset for 3.0 (no upgrade path from 2.x databases).
-- Frontend code follows the airbnb ESLint rules (2-space indent, semicolons, trailing commas).
+- Frontend code follows airbnb-like rules, enforced by ESLint (2-space indent, semicolons, single quotes, trailing commas).
 - User-supplied text and URLs are untrusted. Render text with `{{ }}`, or through `niceLinks` (`components/utils/niceLinks.js`, which escapes everything) when it needs `v-html`. Pass any user-supplied `href` through `safeUrl` (`components/utils/safeUrl.js`), which allows only http(s). The API also rejects non-http(s) `url` and `referer` values (`validate_http_url` in `core/serializers.py`). Never cache the API token in localStorage.
 
 ## Docker

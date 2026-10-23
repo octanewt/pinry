@@ -11,12 +11,12 @@
 # -----------------------------------------------------------------------------
 
 # Build static pnpm file
-FROM node:18-bookworm as pnpm-build
+FROM node:26-trixie-slim AS pnpm-build
 
-WORKDIR pinry-spa
-COPY pinry-spa/package.json pinry-spa/pnpm-lock.yaml ./
-RUN npm install -g pnpm@10
-RUN pnpm install
+WORKDIR /pinry-spa
+COPY pinry-spa/package.json pinry-spa/pnpm-lock.yaml pinry-spa/pnpm-workspace.yaml ./
+RUN npm install -g pnpm@12
+RUN pnpm install --frozen-lockfile
 COPY pinry-spa .
 RUN pnpm build
 
@@ -62,7 +62,7 @@ RUN pip install "rcssmin==1.0.6" --install-option="--without-c-extensions" \
     && pip install -r requirements.txt
 
 # Copy from previous stages
-COPY --from=pnpm-build pinry-spa/dist /pinry/pinry-spa/dist
+COPY --from=pnpm-build /pinry-spa/dist /pinry/pinry-spa/dist
 COPY --from=base /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
