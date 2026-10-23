@@ -81,5 +81,9 @@
     "imageSourceLabel": "Image Source",
     "tagsLabel": "Tags",
     "descriptionLabel": "Descripton",
-    "selectBoardLabel": "Select Board"
+    "selectBoardLabel": "Select Board",
+    "themeMenuTitle": "Theme",
+    "themeLightOption": "Light",
+    "themeDarkOption": "Dark",
+    "themeSystemOption": "System"
 }

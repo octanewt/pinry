@@ -328,10 +328,11 @@ $avatar-height: 30px;
 .pin-card{
   .pin-preview-image {
     cursor: zoom-in;
+    background-color: var(--pinry-image-background);
   }
   > img {
     min-width: $pin-preview-width;
-    background-color: white;
+    background-color: var(--pinry-image-background);
     border-radius: 3px 3px 0 0;
     @include loader('../assets/loader.gif');
   }
@@ -348,13 +349,13 @@ $avatar-height: 30px;
   position: relative;
   overflow-wrap: break-word;
   top: $pin-footer-position-fix;
-  background-color: white;
+  background-color: var(--pinry-card-background);
   border-radius: 0 0 3px 3px ;
-  box-shadow: 0 1px 0 #bbb;
+  box-shadow: var(--pinry-card-shadow);
   .description {
     @include description-font;
     padding: 8px;
-    border-bottom: 1px solid #DDDDDD;
+    border-bottom: 1px solid var(--pinry-divider);
     overflow: hidden;
     text-overflow: ellipsis;
   }

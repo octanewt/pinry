@@ -265,9 +265,12 @@ $pin-footer-position-fix: -6px;
 $avatar-width: 30px;
 $avatar-height: 30px;
 .board-card{
+  .preview-image {
+    background-color: var(--pinry-image-background);
+  }
   .card-image > img {
     min-width: $pin-preview-width;
-    background-color: white;
+    background-color: var(--pinry-image-background);
     border-radius: 3px 3px 0 0;
     @include loader('../assets/loader.gif');
   }
@@ -275,9 +278,9 @@ $avatar-height: 30px;
 .board-footer {
   position: relative;
   top: $pin-footer-position-fix;
-  background-color: white;
+  background-color: var(--pinry-card-background);
   border-radius: 0 0 3px 3px ;
-  box-shadow: 0 1px 0 #bbb;
+  box-shadow: var(--pinry-card-shadow);
   font-weight: bold;
   .description {
     @include secondary-font;
@@ -288,11 +291,11 @@ $avatar-height: 30px;
   }
   .board-info {
     padding: 10px;
-    color: $main-title-font-color;
+    color: var(--pinry-title-text);
   }
   .num-pins {
     font-size: 0.8rem;
-    color: $main-title-font-color;
+    color: var(--pinry-title-text);
   }
 }
 @include screen-grid-layout("#boards-container")
