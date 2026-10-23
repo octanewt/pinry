@@ -19,16 +19,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      # Installs the pnpm version pinned in pinry-spa/package.json (packageManager)
-      - uses: pnpm/action-setup@v6
-        with:
-          package_json_file: pinry-spa/package.json
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
-          cache: pnpm
-          cache-dependency-path: pinry-spa/pnpm-lock.yaml
+      # Third-party actions aren't allowed here, so install pnpm from npm.
+      # Keep the major version in step with packageManager in package.json.
+      - run: npm install -g pnpm@12
       - run: pnpm install --frozen-lockfile
         working-directory: ./pinry-spa
       - run: pnpm lint
