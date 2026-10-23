@@ -2,20 +2,15 @@
   <div class="pins">
     <section class="section">
       <div id="pins-container" class="container" v-if="blocks">
-        <div
-          v-masonry=""
-          transition-duration="0.3s"
-          item-selector=".grid-item"
-          column-width=".grid-sizer"
-          gutter=".gutter-sizer"
+        <MasonryWall
+          :items="blocks"
+          :column-width="pinWidth"
+          :gap="gutter"
+          :key-mapper="itemKey"
         >
-          <template v-for="item in blocks">
-            <div v-bind:key="item.id"
-                 v-masonry-tile
-                 :class="item.class"
+          <template #default="{ item }">
+            <div :class="item.class"
                  class="grid pin-masonry">
-              <div class="grid-sizer"></div>
-              <div class="gutter-sizer"></div>
               <div class="pin-card grid-item">
                 <div @mouseenter="showEditButtons(item.id)"
                      @mouseleave="hideEditButtons(item.id)"
@@ -51,12 +46,9 @@
                         </span>
                         <template v-if="item.tags.length > 0">
                           &nbsp;in&nbsp;
-                          <template v-for="tag in item.tags">
-                            <span v-bind:key="tag" class="pin-tag">
-                              <router-link :to="{ name: 'tag', params: {tag: tag} }"
-                                           params="{tag: tag}">{{ tag }}</router-link>
-                            </span>
-                          </template>
+                          <span v-for="tag in item.tags" :key="tag" class="pin-tag">
+                            <router-link :to="{ name: 'tag', params: {tag: tag} }">{{ tag }}</router-link>
+                          </span>
                         </template>
                         <span v-if="item.referer">• <a :href="item.referer" target="_blank" rel="noopener noreferrer">{{ $t("sourceLink") }}</a></span>
                       </span>
@@ -67,7 +59,7 @@
               </div>
             </div>
           </template>
-        </div>
+        </MasonryWall>
       </div>
       <loadingSpinner v-bind:show="status.loading"></loadingSpinner>
       <noMore v-bind:show="!status.hasNext"></noMore>
@@ -76,6 +68,7 @@
 </template>
 
 <script>
+import { MasonryWall } from '@yeger/vue-masonry-wall';
 import API from './api';
 import pinHandler from './utils/PinHandler';
 import PinPreview from './PinPreview.vue';
@@ -111,6 +104,8 @@ function createImageItem(pin) {
 
 function initialData() {
   return {
+    pinWidth: 240,
+    gutter: 15,
     blocks: [],
     blocksMap: {},
     status: {
@@ -132,6 +127,7 @@ function initialData() {
 export default {
   name: 'pins',
   components: {
+    MasonryWall,
     loadingSpinner,
     noMore,
     EditorUI,
@@ -157,6 +153,9 @@ export default {
     },
   },
   methods: {
+    itemKey(item) {
+      return item.id;
+    },
     shouldShowEdit(id) {
       if (!this.editorMeta.user.loggedIn) {
         return false;
@@ -177,7 +176,7 @@ export default {
     },
     registerScrollEvent() {
       const self = this;
-      scroll.bindScroll2Bottom(
+      this.unbindScroll = scroll.bindScroll2Bottom(
         () => {
           if (self.status.loading || !self.status.hasNext) {
             return;
@@ -201,7 +200,6 @@ export default {
     openPreview(pinItem) {
       this.$buefy.modal.open(
         {
-          parent: this,
           component: PinPreview,
           props: {
             pinItem,
@@ -282,6 +280,7 @@ export default {
           newBlocks.forEach(
             (item) => { this.blocksMap[item.id] = item; },
           );
+          // MasonryWall only notices a new array, never in-place pushes.
           newBlocks = this.blocks.concat(newBlocks);
           this.blocks = newBlocks;
           this.status.offset = newBlocks.length;
@@ -294,25 +293,24 @@ export default {
     niceLinks,
   },
   created() {
-    bus.bus.$on(bus.events.refreshPin, this.reset);
+    bus.bus.on(bus.events.refreshPin, this.reset);
     this.registerScrollEvent();
     this.initialize();
+  },
+  beforeUnmount() {
+    bus.bus.off(bus.events.refreshPin, this.reset);
+    this.unbindScroll();
   },
 };
 </script>
 
 <style lang="scss" scoped>
+@use 'utils/pin' as *;
+@use './utils/fonts' as *;
+@use './utils/loader' as *;
+@use 'utils/grid-layout' as *;
 /* grid */
-@import 'utils/pin';
-
-.grid-sizer,
 .grid-item { width: $pin-preview-width; }
-.grid-item {
-  margin-bottom: 15px;
-}
-.gutter-sizer {
-  width: 15px;
-}
 
 /* pin-image transition */
 .pin-masonry.image-loaded{
@@ -327,9 +325,6 @@ export default {
 $pin-footer-position-fix: -6px;
 $avatar-width: 30px;
 $avatar-height: 30px;
-@import './utils/fonts';
-@import './utils/loader.scss';
-
 .pin-card{
   .pin-preview-image {
     cursor: zoom-in;
@@ -376,8 +371,6 @@ $avatar-height: 30px;
     }
   }
 }
-
-@import 'utils/grid-layout';
 @include screen-grid-layout("#pins-container")
 
 </style>

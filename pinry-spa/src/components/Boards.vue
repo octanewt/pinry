@@ -2,19 +2,15 @@
   <div class="boards">
     <section class="section">
       <div id="boards-container" class="container" v-if="blocks">
-        <div
-          v-masonry=""          transition-duration="0.3s"
-          item-selector=".grid-item"
-          column-width=".grid-sizer"
-          gutter=".gutter-sizer"
+        <MasonryWall
+          :items="blocks"
+          :column-width="boardWidth"
+          :gap="gutter"
+          :key-mapper="itemKey"
         >
-          <template v-for="item in blocks">
-            <div v-bind:key="item.id"
-                 v-masonry-tile
-                 :class="item.class"
+          <template #default="{ item }">
+            <div :class="item.class"
                  class="grid">
-              <div class="grid-sizer"></div>
-              <div class="gutter-sizer"></div>
               <div class="board-card grid-item">
                 <div @mouseenter="currentEditBoard = item.id"
                      @mouseleave="currentEditBoard = null"
@@ -46,7 +42,7 @@
               </div>
             </div>
           </template>
-        </div>
+        </MasonryWall>
       </div>
       <loadingSpinner v-bind:show="status.loading"></loadingSpinner>
       <noMore v-bind:show="!status.hasNext"></noMore>
@@ -55,6 +51,7 @@
 </template>
 
 <script>
+import { MasonryWall } from '@yeger/vue-masonry-wall';
 import API from './api';
 import pinHandler from './utils/PinHandler';
 import loadingSpinner from './loadingSpinner.vue';
@@ -95,6 +92,8 @@ function createBoardItem(board) {
 
 function initialData() {
   return {
+    boardWidth: 240,
+    gutter: 15,
     currentEditBoard: null,
     blocks: [],
     blocksMap: {},
@@ -112,6 +111,7 @@ function initialData() {
 export default {
   name: 'boards',
   components: {
+    MasonryWall,
     loadingSpinner,
     noMore,
     BoardEditorUI,
@@ -124,6 +124,9 @@ export default {
     },
   },
   methods: {
+    itemKey(item) {
+      return item.id;
+    },
     initialize() {
       this.initializeMeta();
       this.fetchMore(true);
@@ -169,7 +172,7 @@ export default {
     },
     registerScrollEvent() {
       const self = this;
-      scroll.bindScroll2Bottom(
+      this.unbindScroll = scroll.bindScroll2Bottom(
         () => {
           if (self.status.loading || !self.status.hasNext) {
             return;
@@ -238,33 +241,29 @@ export default {
     },
   },
   created() {
-    bus.bus.$on(bus.events.refreshBoards, this.reset);
+    bus.bus.on(bus.events.refreshBoards, this.reset);
     this.registerScrollEvent();
     this.initialize();
+  },
+  beforeUnmount() {
+    bus.bus.off(bus.events.refreshBoards, this.reset);
+    this.unbindScroll();
   },
 };
 </script>
 
 <style lang="scss" scoped>
+@use 'utils/pin' as *;
+@use './utils/fonts' as *;
+@use './utils/loader' as *;
+@use 'utils/grid-layout' as *;
 /* grid */
-@import 'utils/pin';
-
-.grid-sizer,
 .grid-item { width: $pin-preview-width; }
-.grid-item {
-  margin-bottom: 15px;
-}
-.gutter-sizer {
-  width: 15px;
-}
 
 /* card */
 $pin-footer-position-fix: -6px;
 $avatar-width: 30px;
 $avatar-height: 30px;
-@import './utils/fonts';
-@import './utils/loader.scss';
-
 .board-card{
   .card-image > img {
     min-width: $pin-preview-width;
@@ -296,8 +295,6 @@ $avatar-height: 30px;
     color: $main-title-font-color;
   }
 }
-
-@import 'utils/grid-layout';
 @include screen-grid-layout("#boards-container")
 
 </style>

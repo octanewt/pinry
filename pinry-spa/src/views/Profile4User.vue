@@ -42,9 +42,11 @@ export default {
       api.User.fetchUserInfoByName(username).then(
         (user) => {
           if (user === null) {
-            self.$router.push(
-              { name: 'PageNotFound' },
-            );
+            // Keep the URL; the catch-all route needs the path as its param.
+            self.$router.replace({
+              name: 'PageNotFound',
+              params: { pathMatch: self.$route.path.substring(1).split('/') },
+            });
           } else {
             self.profile = user;
             self.loadOwnToken(user.username);

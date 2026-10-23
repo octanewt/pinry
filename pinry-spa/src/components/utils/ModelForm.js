@@ -1,4 +1,7 @@
+import { reactive } from 'vue';
 
+// The form is reactive up front, so the helpers below, which close over it,
+// trigger re-renders when they mark or reset fields.
 function createFormModel(fields) {
   const form = {};
   fields.forEach(
@@ -10,7 +13,7 @@ function createFormModel(fields) {
       };
     },
   );
-  return form;
+  return reactive(form);
 }
 
 

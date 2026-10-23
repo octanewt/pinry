@@ -15,17 +15,23 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [ 18.x, ]
+        node-version: [ 26.x, ]
 
     steps:
       - uses: actions/checkout@v7
+      # Installs the pnpm version pinned in pinry-spa/package.json (packageManager)
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: pinry-spa/package.json
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
-      # pnpm 10 matches pnpm-lock.yaml (lockfileVersion 9.0)
-      - run: npm install -g pnpm@10
-      - run: pnpm install
+          cache: pnpm
+          cache-dependency-path: pinry-spa/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: ./pinry-spa
+      - run: pnpm lint
         working-directory: ./pinry-spa
       - run: pnpm build
         working-directory: ./pinry-spa
