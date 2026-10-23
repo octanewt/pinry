@@ -34,3 +34,4 @@ db.sqlite3
 # markdown
 LICENSE.md
 README.md
+.env

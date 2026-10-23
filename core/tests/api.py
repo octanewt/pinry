@@ -1,7 +1,7 @@
 import json
 
 from django.urls import reverse
-import mock
+from unittest import mock
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -37,6 +37,40 @@ class ImageTests(APITestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 401, response.data)
+
+
+class SchemaTests(APITestCase):
+
+    def test_schema_should_document_tags_filter(self):
+        resp = self.client.get(reverse("schema"), {"format": "json"})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        params = resp.json()["paths"]["/api/v2/pins/"]["get"]["parameters"]
+        names = {p["name"] for p in params}
+        self.assertTrue({"tags", "tags_mode", "pins__id"} <= names)
+
+    def test_docs_page_should_load(self):
+        resp = self.client.get(reverse("api-docs"))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+
+class BoardFilterTests(APITestCase):
+
+    def setUp(self):
+        self.owner = create_user("default")
+        self.other = create_user("other")
+        self.own_board = Board.objects.create(name="mine", submitter=self.owner)
+        Board.objects.create(name="theirs", submitter=self.other)
+
+    def tearDown(self):
+        _teardown_models()
+
+    def test_should_filter_boards_by_submitter(self):
+        for name in ("board-list", "board-auto-complete-list"):
+            resp = self.client.get(reverse(name), {"submitter__username": self.owner.username})
+            boards = resp.json()
+            if isinstance(boards, dict):
+                boards = boards["results"]
+            self.assertEqual([b["id"] for b in boards], [self.own_board.id])
 
 
 class BoardPrivacyTests(APITestCase):
@@ -347,7 +381,7 @@ class PinTests(APITestCase):
             'That\'s something else (probably a CC logo)!',
             resp_data
         )
-        self.assertEquals(Pin.objects.count(), 2)
+        self.assertEqual(Pin.objects.count(), 2)
 
     def _post_pin_with_image(self, image_pk):
         return self.client.post(

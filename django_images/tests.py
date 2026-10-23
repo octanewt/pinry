@@ -1,6 +1,6 @@
 from io import BytesIO
 
-import mock
+from unittest import mock
 import qrcode
 from django.test import TestCase
 from django.core.files.images import ImageFile

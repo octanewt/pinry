@@ -10,7 +10,7 @@ This repository is `octanewt/pinry`, a fork of `pinry/pinry` (upstream). Open pu
 
 Pinry is a self-hosted, Pinterest-style image board. It has two parts:
 
-- **Backend**: Django 2.2 (`django>2.2.17,<3`) with Django REST Framework. It serves a JSON API under `/api/v2/` and the Django admin. Dependencies are managed with **Poetry** (`pyproject.toml`, `poetry.lock`). The `requirements.txt` and `requirements-dev.txt` files are generated from Poetry and used by CI and the Docker build.
+- **Backend**: Django 5.2 LTS (`django>=5.2,<5.3`) with Django REST Framework, on Python 3.12+. It serves a JSON API under `/api/v2/` and the Django admin. Dependencies are managed with **uv** (`pyproject.toml`, `uv.lock`). `requirements.txt` is exported from the lock (`make export-requirements`) for the Docker build; CI installs from `uv.lock`.
 - **Frontend**: a Vue 2 single-page app in `pinry-spa/` (Buefy, vue-router, vue-masonry, vue-i18n, axios). It is built with Vue CLI 4 and managed with **pnpm** (`pnpm-lock.yaml`).
 
 The backend does not render the app's pages; the SPA does all UI. In production (Docker), nginx serves `pinry-spa/dist` for `/`, serves `/static` and `/media` from `/data/static`, and proxies `/api` and `/admin` to gunicorn.
@@ -20,15 +20,16 @@ The backend does not render the app's pages; the SPA does all UI. In production 
 Backend (from the repo root, see `Makefile`):
 
 ```sh
-poetry install                              # make install
-poetry run python manage.py migrate         # make migrate
-poetry run python manage.py runserver       # make serve (binds 0.0.0.0:8000)
-poetry run python manage.py test            # make test, runs all Django tests
-poetry run python manage.py test core.tests.api.PinTests   # one test class
-poetry run flake8                           # make flake8
-poetry run python manage.py makemigrations  # make makemigrations
-make export-requirements                    # regenerate requirements*.txt after changing pyproject.toml
-poetry run mkdocs serve                     # make docs-serve (docs in docs/src)
+uv sync                                     # make install
+uv run python manage.py migrate             # make migrate
+uv run python manage.py runserver           # make serve (binds 0.0.0.0:8000)
+uv run python manage.py test                # make test, runs all Django tests
+uv run python manage.py test core.tests.api.PinTests   # one test class
+uv run flake8                               # make flake8
+uv run python manage.py makemigrations      # make makemigrations
+make lock                                   # uv lock + regenerate requirements.txt after changing pyproject.toml
+uv run python manage.py spectacular --validate --file schema.yml   # check the OpenAPI schema
+uv run mkdocs serve                         # make docs-serve (docs in docs/src)
 ```
 
 Frontend (from `pinry-spa/`, Node 18):
@@ -46,23 +47,23 @@ For local development, run `manage.py runserver` and `pnpm serve` at the same ti
 
 CI (`.github/workflows/`) does the following:
 
-- **Backend:** runs `pip install -r requirements-dev.txt`, then `make flake8-in-ci` and `make test-in-ci` on Python 3.7, 3.8 and 3.9.
+- **Backend:** runs `uv sync --locked`, checks `requirements.txt` matches the lock, then flake8, `makemigrations --check` and the Django tests on Python 3.12, 3.13 and 3.14.
 - **Frontend:** runs `pnpm install && pnpm build` on Node 18.
 
-Keep code compatible with Python 3.7: no walrus operator, no positional-only parameters, and no `dict | dict`. When you change dependencies in `pyproject.toml`, also update `poetry.lock` and the exported `requirements*.txt` files. CI and Docker install only from the requirements files.
-
-- Use Poetry 1.8 (`poetry lock --no-update`, then `make export-requirements`). The lock is in Poetry 1.8's format, and Poetry 2 rewrites it.
-- `pyproject.toml` caps `importlib-metadata` below 5 on Python 3.7, because flake8 3.x breaks with newer versions.
+Keep code compatible with Python 3.12 (the `requires-python` floor). When you change dependencies in `pyproject.toml`, run `make lock` so `uv.lock` and `requirements.txt` stay in step; CI fails if they differ.
 
 ## Settings
 
-- `manage.py` defaults to `pinry.settings.development` unless `DJANGO_SETTINGS_MODULE` or `--settings` is given. The development settings use SQLite at `db.sqlite3`, set `DEBUG=True` and add `django_extensions`. `manage.py` also sets `settings.IS_TEST = True` whenever `test` is in argv, and when `IS_TEST` is true, `pinry/urls.py` also serves static files.
+- All site settings come from **environment variables**, read in `pinry/settings/base.py` through the helpers in `pinry/settings/env.py` and documented in `.env.example`. There is no `local_settings.py`. `DATABASE_URL` (parsed by dj-database-url) picks the database, SQLite by default.
+- `manage.py` defaults to `pinry.settings.development` unless `DJANGO_SETTINGS_MODULE` or `--settings` is given. The development settings set `DEBUG=True`, fall back to a dummy `SECRET_KEY` and `ALLOWED_HOSTS=['*']`, and add `django_extensions`. `manage.py` also sets `settings.IS_TEST = True` whenever `test` is in argv, and when `IS_TEST` is true, `pinry/urls.py` also serves static files.
 - `pinry/settings/base.py` holds the shared config, including `PUBLIC`, `ALLOW_NEW_REGISTRATIONS`, `IMAGE_SIZES`, `IMAGE_PATH`, `IMAGE_AUTO_DELETE` and the DRF config:
-  - Authentication: Token and Session, plus Basic only when `ALLOW_BASIC_AUTH=True` (`users/auth/throttling.py`). Failed password checks are throttled per client address (`LoginRateThrottle`, rate `DEFAULT_THROTTLE_RATES["login"]`), enforced in `CombinedAuthBackend`.
+  - Authentication: Token and Session, plus Basic only when `ALLOW_BASIC_AUTH=True` (`users/auth/throttling.py`). Failed password checks are throttled per client address (`LoginRateThrottle`, rate `DEFAULT_THROTTLE_RATES["login"]`, env `LOGIN_THROTTLE_RATE`), enforced in `CombinedAuthBackend`.
   - Pagination: LimitOffset, with `PAGE_SIZE=50`.
   - `URL_FIELD_NAME="resource_link"`.
-- `pinry/settings/docker.py` is the production config. It is selected with `ENV DJANGO_SETTINGS_MODULE` in `Dockerfile.autobuild` and `_start_gunicorn.sh`, not with a `--settings` flag. It uses Postgres at host `db`, reads `SECRET_KEY` from the environment, and **requires** a `local_settings.py`. See `local_settings.example.py`.
-- `local_settings.py` is optional in development and gitignored. It overrides settings and is where `ENABLED_PLUGINS` is set.
+  - Schema: drf-spectacular (`DEFAULT_SCHEMA_CLASS`). The OpenAPI 3 schema is at `/api/v2/schema/` and Swagger UI at `/api/v2/docs/`. Custom filter backends describe their query parameters in `get_schema_operation_parameters`.
+  - `DEFAULT_AUTO_FIELD` is `BigAutoField`.
+- `pinry/settings/docker.py` is the production config. It is selected with `ENV DJANGO_SETTINGS_MODULE` in `Dockerfile.autobuild` and `_start_gunicorn.sh`, not with a `--settings` flag. It keeps the database (SQLite at `/data/production.db` unless `DATABASE_URL` is set), static files and media in `/data`, and refuses to start without `SECRET_KEY` and `ALLOWED_HOSTS`.
+- Django 4+ requires a scheme in each `CSRF_TRUSTED_ORIGINS` value (`https://pins.example.com`); the system check rejects bare host names.
 
 ## Architecture
 
@@ -76,9 +77,9 @@ Django apps:
   - **Privacy**: private boards and pins are filtered for non-owners in `core/serializers.py` (`filter_private_pin`, `filter_private_board`) and in the viewset querysets. Any change to how pins or boards are listed must keep this filtering.
   - `Pin.url` and `Pin.referer` hold up to 2048 characters. `referer` is labelled "Source" in the UI.
   - When an image is fetched from a URL, it is checked with Pillow (`ImageManager._is_valid_image`) and rejected if Pillow can't open it.
-  - Tags use `django-taggit` (pinned at 1.3.0). Filtering uses `django-filter` (pinned at 2.4.0).
+  - Tags use `django-taggit` 6 (`pin.tags.set(list)`, not `set(*tags)`). Filtering uses `django-filter`; viewsets declare `filterset_fields`/`filterset_class`.
   - Multi-tag search is in `core/filters.py` (`TagsFilterBackend`): `/api/v2/pins/?tags=a&tags=b&tags_mode=all|any`, defaulting to `all`. The frontend sends repeated `tags=` keys through `serializeParams` in `api.js`.
-- **`django_images/`** is a vendored image library. It provides the base `Image` and `Thumbnail` models, MD5-hashed upload paths, and thumbnail generation at the sizes in `IMAGE_SIZES`. Signal handlers delete files on disk when rows are deleted (`IMAGE_AUTO_DELETE`).
+- **`django_images/`** is a vendored image library. It provides the base `Image` and `Thumbnail` models, MD5-hashed upload paths, and thumbnail generation at the sizes in `IMAGE_SIZES`. `Image.uploaded_by` and `Image.sha256` exist for issues #6 and #8 but nothing fills them in yet. Signal handlers delete files on disk when rows are deleted (`IMAGE_AUTO_DELETE`).
 - **`users/`** has the custom `User` model, the login and logout views, and the `users` and `public-users` viewsets, mounted at `/api/v2/profile/`.
   - `users.auth.backends.CombinedAuthBackend` adds email login (emails aren't unique: it logs in only when exactly one account's password matches) and leaves usernames to `ModelBackend`. Registration runs `validate_password`. Logout is POST-only at `/api/v2/profile/logout/`.
   - `users.middleware.Public` returns 403 to anonymous requests when `PUBLIC=False`, except for `/api/v2/profile/` and `/admin/login/`. Requests with a valid token (or Basic auth, when enabled) pass too, since DRF only authenticates them later in the view.
@@ -107,8 +108,9 @@ Frontend (`pinry-spa/src/`):
 ## Conventions
 
 - flake8 config is in `.flake8`: max line length 80, but E501 is ignored. Migrations, `pinry/settings/` and `core/tests/` are excluded. Bugbear (`B`) checks are selected.
-- `black==19.10b0` is a dev dependency but is not enforced in CI. Match the style of the surrounding code.
-- After changing models, generate migrations with `manage.py makemigrations` and commit them. Don't hand-edit existing migrations.
+- flake8-bugbear is installed, so the `B` checks run (B950 is ignored, like E501). No formatter is enforced; match the style of the surrounding code.
+- Tests use `unittest.mock`.
+- After changing models, generate migrations with `manage.py makemigrations` and commit them. Don't hand-edit existing migrations. The migration history was reset for 3.0 (no upgrade path from 2.x databases).
 - Frontend code follows the airbnb ESLint rules (2-space indent, semicolons, trailing commas).
 - User-supplied text and URLs are untrusted. Render text with `{{ }}`, or through `niceLinks` (`components/utils/niceLinks.js`, which escapes everything) when it needs `v-html`. Pass any user-supplied `href` through `safeUrl` (`components/utils/safeUrl.js`), which allows only http(s). The API also rejects non-http(s) `url` and `referer` values (`validate_http_url` in `core/serializers.py`). Never cache the API token in localStorage.
 
@@ -116,5 +118,5 @@ Frontend (`pinry-spa/src/`):
 
 - `Dockerfile.autobuild` builds the release image (`getpinry/pinry`). It is a single image with nginx, gunicorn and the built SPA, installs from `requirements.txt` and supports multiple platforms, including ARM.
 - `Dockerfile` and `docker-compose.example.yml` are for development.
-- Build scripts are in `docker/` (`build_docker.sh`, `build_docker_multiple_platform.sh`). Runtime scripts are in `docker/scripts/` (`start.sh`, `bootstrap.sh`, `gen_key.sh`), and the nginx config, which sends `X-Frame-Options: sameorigin`, is in `docker/nginx/`.
+- Build scripts are in `docker/` (`build_docker.sh`, `build_docker_multiple_platform.sh`). Runtime scripts are in `docker/scripts/` (`start.sh`, `gen_key.sh`), and the nginx config, which sends `X-Frame-Options: sameorigin`, is in `docker/nginx/`.
 - Persistent data (the database, static files and media) lives in the `/data` volume.
