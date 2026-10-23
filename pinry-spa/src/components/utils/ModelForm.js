@@ -31,6 +31,8 @@ function FormHelper(form, fields = []) {
     Object.entries(errorRespObject).forEach(
       (errorTuple) => {
         const [key, error] = errorTuple;
+        // Errors such as "detail" don't belong to a field.
+        if (!(key in self)) return;
         let msg;
         if (Array.isArray(error)) {
           [msg] = error;
