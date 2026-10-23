@@ -17,12 +17,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
-    - name: Set up uv and Python ${{ matrix.python-version }}
-      uses: astral-sh/setup-uv@v7
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: uv sync --locked
+    # uv from PyPI rather than astral-sh/setup-uv, so the workflow only
+    # uses GitHub's own actions.
+    - name: Install uv and dependencies
+      run: |
+        python -m pip install --upgrade pip uv
+        uv sync --locked --python "$(which python)"
     - name: Check requirements.txt matches the lock
       run: |
         uv export --frozen --no-dev --no-emit-project -o requirements.txt
