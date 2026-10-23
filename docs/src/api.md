@@ -49,7 +49,7 @@ Pins and boards embed their owner as `submitter`, and `/api/v2/profile/public-us
         "resource_link": "http://localhost:8000/api/v2/profile/public-users/1/"
     }
 
-Before this change, `submitter` and `public-users` also returned `email` (to anyone) and `token` (to the user themself). Clients that read either field from there should use `/api/v2/profile/users/` instead.
+`email` and `token` are never included there; read them from `/api/v2/profile/users/`.
 
 # Privacy filters
 
@@ -61,4 +61,4 @@ Private pins and boards are only visible to their owner, and the API applies thi
 
 
 # API reference
-Just use the interactive API interface by DRF or follow the file [api.js](https://github.com/pinry/pinry/blob/master/pinry-spa/src/components/api.js)
+Open `/api/v2/docs/` on your instance for the interactive reference, or download the schema from `/api/v2/schema/` to generate a client. The SPA's own client, [api.js](https://github.com/octanewt/pinry/blob/master/pinry-spa/src/components/api.js), shows every call it makes.
