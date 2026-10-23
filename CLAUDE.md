@@ -10,7 +10,7 @@ This repository is `octanewt/pinry`, a fork of `pinry/pinry` (upstream). Open pu
 
 Pinry is a self-hosted, Pinterest-style image board. It has two parts:
 
-- **Backend**: Django 5.2 LTS (`django>=5.2,<5.3`) with Django REST Framework, on Python 3.12+. It serves a JSON API under `/api/v2/` and the Django admin. Dependencies are managed with **uv** (`pyproject.toml`, `uv.lock`). `requirements.txt` is exported from the lock (`make export-requirements`) for the Docker build; CI installs from `uv.lock`.
+- **Backend**: Django 5.2 LTS (`django>=5.2,<5.3`) with Django REST Framework, on Python 3.12+. It serves a JSON API under `/api/v2/` and the Django admin. Dependencies are managed with **uv** (`pyproject.toml`, `uv.lock`). CI and the Docker image install from `uv.lock`; there is no `requirements.txt`.
 - **Frontend**: a Vue 3 single-page app in `pinry-spa/` (Buefy 3 on Bulma 1, vue-router 5, vue-i18n 11, @yeger/vue-masonry-wall, axios), written in JavaScript with the Options API. It is built with Vite and managed with **pnpm** 12 (`pnpm-lock.yaml`; `pnpm-workspace.yaml` lists which dependencies may run build scripts).
 
 The backend does not render the app's pages; the SPA does all UI. In production (Docker), nginx serves `pinry-spa/dist` for `/`, serves `/static` and `/media` from `/data/static`, and proxies `/api` and `/admin` to gunicorn.
@@ -27,7 +27,7 @@ uv run python manage.py test                # make test, runs all Django tests
 uv run python manage.py test core.tests.api.PinTests   # one test class
 uv run flake8                               # make flake8
 uv run python manage.py makemigrations      # make makemigrations
-make lock                                   # uv lock + regenerate requirements.txt after changing pyproject.toml
+make lock                                   # uv lock after changing pyproject.toml
 uv run python manage.py spectacular --validate --file schema.yml   # check the OpenAPI schema
 uv run mkdocs serve                         # make docs-serve (docs in docs/src)
 ```
@@ -45,10 +45,11 @@ For local development, run `manage.py runserver` and `pnpm serve` at the same ti
 
 CI (`.github/workflows/`) does the following:
 
-- **Backend:** runs `uv sync --locked`, checks `requirements.txt` matches the lock, then flake8, `makemigrations --check` and the Django tests on Python 3.12, 3.13 and 3.14.
+- **Backend:** runs `uv sync --locked`, then flake8, `makemigrations --check` and the Django tests on Python 3.12, 3.13 and 3.14.
 - **Frontend:** runs `pnpm install --frozen-lockfile`, `pnpm lint` and `pnpm build` on Node 26.
+- **Docker:** builds the release image and smoke-tests it, builds the dev image, and builds for arm64 (see Docker below).
 
-Keep code compatible with Python 3.12 (the `requires-python` floor). When you change dependencies in `pyproject.toml`, run `make lock` so `uv.lock` and `requirements.txt` stay in step; CI fails if they differ.
+Keep code compatible with Python 3.12 (the `requires-python` floor). When you change dependencies in `pyproject.toml`, run `make lock` and commit `uv.lock`; CI's `uv sync --locked` fails on a stale lock.
 
 ## Settings
 
@@ -120,7 +121,9 @@ Frontend (`pinry-spa/src/`):
 
 ## Docker
 
-- `Dockerfile.autobuild` builds the release image (`getpinry/pinry`). It is a single image with nginx, gunicorn and the built SPA, installs from `requirements.txt` and supports multiple platforms, including ARM.
-- `Dockerfile` and `docker-compose.example.yml` are for development.
-- Build scripts are in `docker/` (`build_docker.sh`, `build_docker_multiple_platform.sh`). Runtime scripts are in `docker/scripts/` (`start.sh`, `gen_key.sh`), and the nginx config, which sends `X-Frame-Options: sameorigin`, is in `docker/nginx/`.
-- Persistent data (the database, static files and media) lives in the `/data` volume.
+- `Dockerfile.autobuild` builds the release image on `python:3.13-slim-trixie`, for linux/amd64 and linux/arm64 (no 32-bit ARM). It is a single image with nginx, gunicorn and the built SPA. The SPA stage runs on the build platform (`node:26-trixie-slim`); the Python stage installs `uv.lock` into `/opt/venv`. It has a `HEALTHCHECK` (`docker/scripts/healthcheck.py`).
+- Configure the container with environment variables (`.env.example`). `docker-compose.example.yml` (SQLite, LAN) and `docker-compose.postgres.example.yml` (PostgreSQL 17, behind a TLS proxy) read `.env`.
+- `Dockerfile` and `docker-compose.dev.yml` are for development: runserver and the Vite dev server with the source mounted (`make dev-docker-serve`).
+- The image is not published to a registry (user's choice, 2026-10-23); everyone builds it locally. `docker/build_docker.sh` (or `make docker-build`) tags `pinry:local`, which the compose examples use. Runtime scripts are in `docker/scripts/` (`start.sh`, `_start_gunicorn.sh`, `gen_key.sh`, `healthcheck.py`), and the nginx config, which sends `X-Frame-Options: sameorigin`, is in `docker/nginx/`. gunicorn listens on 127.0.0.1:8000 only; nginx is the way in.
+- CI (`.github/workflows/docker.yml`) builds the amd64 image and runs `docker/tests/smoke.sh` on it (`make docker-smoke-test` locally), builds the dev image, and builds the arm64 image under QEMU.
+- Persistent data (the database, static files and media) lives in the `/data` volume. `start.sh` chowns `/data` to `www-data` (uid 1000) on every start.

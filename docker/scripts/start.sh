@@ -1,28 +1,20 @@
 #!/bin/bash
 # -----------------------------------------------------------------------------
-# docker-pinry /start script
+# docker-pinry start script
 #
-# Will setup database and static files if they don't exist already, if they do
-# just continues to run docker-pinry.
-#
-# Authors: Isaac Bythewood
-# Updated: Aug 19th, 2014
+# Collects static files, applies migrations, then runs nginx and gunicorn.
+# Stops at the first error, e.g. a missing SECRET_KEY or ALLOWED_HOSTS.
 # -----------------------------------------------------------------------------
-PROJECT_ROOT="/pinry"
+set -e
 
-# If static files don't exist collect them
-cd ${PROJECT_ROOT}
+cd /pinry
+
 python manage.py collectstatic --noinput
-
-# Create the database, or apply new migrations after an upgrade
-cd ${PROJECT_ROOT}
 python manage.py migrate --noinput
 
-# Fix all settings after all commands are run
+# The data volume may come from the host with other owners.
 chown -R www-data:www-data /data
 
-# start all process
 /usr/sbin/nginx
 
-cd ${PROJECT_ROOT}
-./docker/scripts/_start_gunicorn.sh
+exec ./docker/scripts/_start_gunicorn.sh
