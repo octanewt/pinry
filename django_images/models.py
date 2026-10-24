@@ -56,11 +56,16 @@ class Image(models.Model):
         settings.AUTH_USER_MODEL, null=True, blank=True, editable=False,
         on_delete=models.SET_NULL, related_name='+',
     )
-    # SHA-256 of the file, for finding duplicate uploads (issue #8).
-    # Not filled in yet.
+    # SHA-256 of the file as received, for finding duplicate uploads
+    # (issue #8). Set once, when the image is first saved.
     sha256 = models.CharField(
         max_length=64, blank=True, default='', editable=False, db_index=True,
     )
+
+    def save(self, *args, **kwargs):
+        if not self.sha256 and self.image:
+            self.sha256 = utils.file_sha256(self.image)
+        super().save(*args, **kwargs)
 
     def get_by_size(self, size):
         return self.thumbnail_set.get(size=size)

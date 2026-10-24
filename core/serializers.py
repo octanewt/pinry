@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -11,6 +12,7 @@ from core.fetch import FetchError
 from core.models import Image, Board
 from core.models import Pin
 from django_images.models import Thumbnail
+from django_images.utils import file_sha256
 from users.serializers import PublicUserSerializer
 from users.models import User
 
@@ -21,6 +23,21 @@ def filter_private_pin(request, query):
     else:
         query = query.exclude(private=True)
     return query.select_related('image', 'submitter')
+
+
+def reusable_images(request):
+    """
+    Images the requester may attach to a pin: their own uploads that no pin
+    uses yet (issue #6), and images used by pins they can see.
+    """
+    visible_pins = filter_private_pin(request, Pin.objects.all())
+    if request.user.is_authenticated:
+        own_unattached = Q(pin__isnull=True, uploaded_by=request.user)
+    else:
+        own_unattached = Q(pk__in=[])
+    return Image.objects.filter(
+        own_unattached | Q(pin__in=visible_pins),
+    ).distinct()
 
 
 def validate_http_url(value):
@@ -72,7 +89,18 @@ class ImageSerializer(serializers.ModelSerializer):
     square = ThumbnailSerializer(read_only=True)
 
     def create(self, validated_data):
-        image = super(ImageSerializer, self).create(validated_data)
+        # Reuse an image the uploader could already attach rather than store
+        # a second copy (issue #8). Images they can't see are never reused,
+        # so an upload doesn't reveal that someone else has the same file.
+        sha256 = file_sha256(validated_data['image'])
+        existing = Image.objects.lock_reusable(
+            reusable_images(self.context['request']), sha256=sha256,
+        )
+        if existing is not None:
+            return existing
+        image = super(ImageSerializer, self).create(
+            dict(validated_data, sha256=sha256),
+        )
         Thumbnail.objects.get_or_create_at_sizes(image, settings.IMAGE_SIZES.keys())
         return image
 
@@ -108,15 +136,7 @@ class ReusableImageField(serializers.PrimaryKeyRelatedField):
     """
 
     def get_queryset(self):
-        request = self.context['request']
-        visible_pins = filter_private_pin(request, Pin.objects.all())
-        if request.user.is_authenticated:
-            own_unattached = Q(pin__isnull=True, uploaded_by=request.user)
-        else:
-            own_unattached = Q(pk__in=[])
-        return Image.objects.filter(
-            own_unattached | Q(pin__in=visible_pins),
-        ).distinct()
+        return reusable_images(self.context['request'])
 
 
 class PinSerializer(serializers.HyperlinkedModelSerializer):
@@ -153,6 +173,7 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
     def validate_referer(self, value):
         return validate_http_url(value)
 
+    @transaction.atomic
     def create(self, validated_data):
         if 'url' not in validated_data and\
                 'image_by_id' not in validated_data:
@@ -162,7 +183,8 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
                 },
             )
 
-        submitter = self.context['request'].user
+        request = self.context['request']
+        submitter = request.user
         if 'url' in validated_data and validated_data['url']:
             url = validated_data['url']
             try:
@@ -170,13 +192,21 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
                     url,
                     validated_data.get('referer', url),
                     uploaded_by=submitter,
+                    reusable=reusable_images(request),
                 )
             except FetchError as e:
                 raise ValidationError({"url": str(e)}) from e
             if not image:
                 raise ValidationError({"url": "invalid image content"})
         else:
-            image = validated_data.pop("image_by_id")
+            pk = validated_data.pop("image_by_id").pk
+            # Lock it so it can't be deleted before the pin is saved.
+            image = Image.objects.lock_reusable(reusable_images(request), pk=pk)
+            if image is None:
+                field = self.fields['image_by_id']
+                raise ValidationError({"image_by_id": [
+                    field.error_messages['does_not_exist'].format(pk_value=pk),
+                ]})
         tags = validated_data.pop('tag_list', [])
         pin = Pin.objects.create(submitter=submitter, image=image, **validated_data)
         if tags:

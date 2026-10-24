@@ -1,7 +1,17 @@
+import hashlib
 from contextlib import contextmanager
 from io import BytesIO
 import PIL
 from PIL import Image
+
+
+def file_sha256(file):
+    """Return the SHA-256 hex digest of a Django File's contents."""
+    hasher = hashlib.sha256()
+    for chunk in file.chunks():
+        hasher.update(chunk)
+    file.seek(0)
+    return hasher.hexdigest()
 
 
 @contextmanager
