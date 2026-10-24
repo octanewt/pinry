@@ -256,6 +256,25 @@ docker compose start
 Keep a copy of `.env` too, since it holds your `SECRET_KEY`.
 
 
+# Cleaning up unused images
+
+When you upload an image and then close the new-pin dialog without saving, the
+image stays in `./data` with no pin. `prune_images` finds images that no pin
+uses and that were stored more than 24 hours ago, so an upload that is still
+being pinned is left alone. On its own it only counts them; add `--delete` to
+delete them:
+
+```
+docker compose exec pinry python manage.py prune_images
+docker compose exec pinry python manage.py prune_images --delete
+```
+
+`--older-than HOURS` changes the 24 hour grace period, and `--verbosity 2`
+lists each image. To run it regularly, add the `--delete` line to the host's
+crontab. If `IMAGE_AUTO_DELETE` is off, the files stay on disk and only the
+database rows are removed.
+
+
 # Troubleshooting
 
 + **The container exits right away.** Run `docker compose logs pinry`. The

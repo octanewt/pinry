@@ -162,7 +162,9 @@ class ImagesHashCommandTests(APITestCase):
         pin_a = create_pin(self.owner, keep, [])
         pin_b = create_pin(self.owner, duplicate, [])
         files = [duplicate.image] + [t.image for t in duplicate.thumbnail_set.all()]
-        self._run('--merge')
+        # Files are deleted on commit (#20).
+        with self.captureOnCommitCallbacks(execute=True):
+            self._run('--merge')
         self.assertEqual(list(Image.objects.values_list('pk', flat=True)), [keep.pk])
         pin_a.refresh_from_db()
         pin_b.refresh_from_db()
