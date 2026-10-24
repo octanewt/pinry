@@ -213,6 +213,25 @@ open it. The URLs contain a hash, so they are hard to guess, but don't rely
 on Pinry to keep the images themselves secret.
 
 
+# Duplicate images
+
+When you pin or upload a file that is identical to an image you can already
+see (your own pins and uploads, and other people's public pins), Pinry reuses
+the stored image instead of saving another copy. Images on other people's
+private pins are never reused, so pinning a file doesn't tell you whether
+someone else has it. Only byte-for-byte identical files match: the same
+picture at another size or quality is stored separately.
+
+Images stored before this was added (or restored from an old backup) have no
+recorded hash. To fill it in and see how many duplicates there are:
+
+    docker compose exec pinry python manage.py images_hash
+
+Add `--merge` to fold duplicates whose pins all belong to the same user into
+one image, deleting the extra copies. Images shared by several users' pins
+and uploads no pin uses yet are left alone. Back up `./data` first.
+
+
 # Updating
 
 ```
