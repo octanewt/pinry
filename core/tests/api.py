@@ -330,7 +330,7 @@ class PinTests(APITestCase):
         self.assertEqual(pin.tags.count(), 0)
 
     def test_should_reject_non_http_referer(self):
-        image = create_image()
+        image = create_image(uploaded_by=self.user)
         create_url = reverse("pin-list")
         for referer in ('javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,x'):
             post_data = {'referer': referer, 'image_by_id': image.pk}
@@ -340,7 +340,7 @@ class PinTests(APITestCase):
         self.assertEqual(Pin.objects.count(), 0)
 
     def test_should_accept_blank_referer(self):
-        image = create_image()
+        image = create_image(uploaded_by=self.user)
         create_url = reverse("pin-list")
         for referer in ('', None):
             post_data = {'referer': referer, 'image_by_id': image.pk}
@@ -390,6 +390,52 @@ class PinTests(APITestCase):
         return self.client.post(
             reverse("pin-list"), {'image_by_id': image_pk}, format="json",
         )
+
+    def _upload_image(self):
+        with open('docs/src/imgs/logo-dark.png', 'rb') as f:
+            response = self.client.post(
+                reverse("image-list"), {'image': f}, format="multipart",
+            )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        return response.json()['id']
+
+    def test_should_record_uploader_and_pin_own_upload(self):
+        image_pk = self._upload_image()
+        self.assertEqual(Image.objects.get(pk=image_pk).uploaded_by, self.user)
+        response = self._post_pin_with_image(image_pk)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.json())
+
+    def test_should_reject_others_unattached_upload(self):
+        image_pk = self._upload_image()
+        self.client.logout()
+        other = create_user("other")
+        self.client.login(username=other.username, password='password')
+        response = self._post_pin_with_image(image_pk)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Pin.objects.count(), 0)
+        # Same error as for an image that doesn't exist, so it isn't revealed
+        missing = self._post_pin_with_image(image_pk + 1000).json()['image_by_id']
+        self.assertEqual(
+            response.json()['image_by_id'],
+            [m.replace(str(image_pk + 1000), str(image_pk)) for m in missing],
+        )
+
+    def test_should_reject_unattached_image_without_uploader(self):
+        image = create_image()
+        response = self._post_pin_with_image(image.pk)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Pin.objects.count(), 0)
+
+    @mock.patch('core.models.fetch_url', mock_fetch_url)
+    def test_should_record_uploader_for_url_pin(self):
+        response = self.client.post(
+            reverse("pin-list"),
+            {'url': 'http://testserver.com/mocked/logo.png'},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.json())
+        pin = Pin.objects.get(pk=response.json()['id'])
+        self.assertEqual(pin.image.uploaded_by, self.user)
 
     def test_should_share_image_of_visible_pin(self):
         image = create_image()

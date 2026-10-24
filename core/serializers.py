@@ -101,17 +101,21 @@ class TagSerializer(serializers.SlugRelatedField):
 @extend_schema_field(OpenApiTypes.INT)
 class ReusableImageField(serializers.PrimaryKeyRelatedField):
     """
-    Accept an image only if it is a fresh upload that no pin uses yet, or is
-    used by a pin the requester can see. Any other image is rejected as if it
-    didn't exist, so a private image's existence isn't revealed.
+    Accept an image only if it is the requester's own upload that no pin uses
+    yet, or is used by a pin the requester can see. Any other image is
+    rejected as if it didn't exist, so a private image's existence isn't
+    revealed and nobody can claim someone else's upload (issue #6).
     """
 
     def get_queryset(self):
-        visible_pins = filter_private_pin(
-            self.context['request'], Pin.objects.all(),
-        )
+        request = self.context['request']
+        visible_pins = filter_private_pin(request, Pin.objects.all())
+        if request.user.is_authenticated:
+            own_unattached = Q(pin__isnull=True, uploaded_by=request.user)
+        else:
+            own_unattached = Q(pk__in=[])
         return Image.objects.filter(
-            Q(pin__isnull=True) | Q(pin__in=visible_pins),
+            own_unattached | Q(pin__in=visible_pins),
         ).distinct()
 
 
@@ -165,6 +169,7 @@ class PinSerializer(serializers.HyperlinkedModelSerializer):
                 image = Image.objects.create_for_url(
                     url,
                     validated_data.get('referer', url),
+                    uploaded_by=submitter,
                 )
             except FetchError as e:
                 raise ValidationError({"url": str(e)}) from e
