@@ -3,6 +3,7 @@ import os.path
 
 from django.conf import settings
 from django.db import models, transaction
+from django.utils import timezone
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.dispatch import receiver
 
@@ -60,6 +61,11 @@ class Image(models.Model):
     # Not filled in yet.
     sha256 = models.CharField(
         max_length=64, blank=True, default='', editable=False, db_index=True,
+    )
+    # When the image was stored, so prune_images can leave alone uploads
+    # that may still be attached to a new pin (issue #7).
+    created = models.DateTimeField(
+        default=timezone.now, editable=False, db_index=True,
     )
 
     def get_by_size(self, size):
