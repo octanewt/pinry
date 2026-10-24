@@ -251,8 +251,8 @@ docker compose exec pinry python manage.py prune_images --delete
 ```
 
 `--older-than HOURS` changes the 24 hour grace period, and `--verbosity 2`
-lists each image. The container runs it with `--delete` every time it starts.
-To run it more often, add the `--delete` line to the host's crontab. If `IMAGE_AUTO_DELETE` is off, the files stay on disk and only the
+lists each image. To run it regularly, add the `--delete` line to the host's
+crontab. If `IMAGE_AUTO_DELETE` is off, the files stay on disk and only the
 database rows are removed.
 
 

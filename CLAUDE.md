@@ -76,7 +76,7 @@ Django apps:
   - **Privacy**: private boards and pins are filtered for non-owners in `core/serializers.py` (`filter_private_pin`, `filter_private_board`) and in the viewset querysets. Any change to how pins or boards are listed must keep this filtering.
   - `Pin.url` and `Pin.referer` hold up to 2048 characters. `referer` is labelled "Source" in the UI.
   - Pins can share an image. `delete_pin_images` (`core/models.py`) deletes an image with its last pin, after locking the image row with `select_for_update()` so concurrent deletes can't leave it orphaned (issue #7).
-  - `manage.py prune_images` lists, and with `--delete` deletes, images no pin uses that are older than `--older-than` hours (default 24), using `django_images.Image.created`. Abandoned uploads are the usual source. `docker/scripts/start.sh` runs it with `--delete` at container start. See `docs/src/install-with-docker.md`.
+  - `manage.py prune_images` lists, and with `--delete` deletes, images no pin uses that are older than `--older-than` hours (default 24), using `django_images.Image.created`. Abandoned uploads are the usual source. See `docs/src/install-with-docker.md`.
   - When an image is fetched from a URL, it is checked with Pillow (`ImageManager._is_valid_image`) and rejected if Pillow can't open it.
   - Tags use `django-taggit` 6 (`pin.tags.set(list)`, not `set(*tags)`). Filtering uses `django-filter`; viewsets declare `filterset_fields`/`filterset_class`.
   - Multi-tag search is in `core/filters.py` (`TagsFilterBackend`): `/api/v2/pins/?tags=a&tags=b&tags_mode=all|any`, defaulting to `all`. The frontend sends repeated `tags=` keys through `serializeParams` in `api.js`.
