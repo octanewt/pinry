@@ -56,7 +56,7 @@ class ImageManager(models.Manager):
         return base or "image"
 
     # FIXME: Move this into an asynchronous task
-    def create_for_url(self, url, referer=None):
+    def create_for_url(self, url, referer=None, uploaded_by=None):
         """Fetch ``url`` and store it as an Image.
 
         Returns None if the content isn't an image Pillow can read; raises
@@ -75,7 +75,7 @@ class ImageManager(models.Manager):
         # create the image and its thumbnails in one transaction, removing
         # a chance of getting Database into a inconsistent state when we
         # try to create thumbnails one by one later
-        image = self.create(image=obj)
+        image = self.create(image=obj, uploaded_by=uploaded_by)
         Thumbnail.objects.get_or_create_at_sizes(image, settings.IMAGE_SIZES.keys())
         return image
 

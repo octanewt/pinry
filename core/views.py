@@ -15,8 +15,9 @@ class ImageViewSet(mixins.CreateModelMixin, GenericViewSet):
     queryset = Image.objects.all()
     serializer_class = api.ImageSerializer
 
-    def create(self, request, *args, **kwargs):
-        return super(ImageViewSet, self).create(request, *args, **kwargs)
+    def perform_create(self, serializer):
+        # Recorded so only the uploader can attach it to a pin (issue #6).
+        serializer.save(uploaded_by=self.request.user)
 
 
 class PinViewSet(viewsets.ModelViewSet):

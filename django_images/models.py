@@ -52,7 +52,7 @@ class Image(models.Model):
     height = models.PositiveIntegerField(default=0, editable=False)
     width = models.PositiveIntegerField(default=0, editable=False)
     # Who uploaded the file, so an image no pin uses yet can only be
-    # claimed by its uploader (issue #6). Not filled in yet.
+    # claimed by its uploader (issue #6). Set by core on upload and fetch.
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, editable=False,
         on_delete=models.SET_NULL, related_name='+',
