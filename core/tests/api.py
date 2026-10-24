@@ -476,7 +476,8 @@ class PinTests(APITestCase):
         other_pin = create_pin(create_user("other"), image, [])
         pin = create_pin(self.user, image, [])
         files = self._image_files(image)
-        self.client.delete(reverse("pin-detail", kwargs={"pk": pin.pk}))
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.delete(reverse("pin-detail", kwargs={"pk": pin.pk}))
         self.assertFalse(Pin.objects.filter(pk=pin.pk).exists())
         self.assertTrue(Pin.objects.filter(pk=other_pin.pk).exists())
         self.assertTrue(Image.objects.filter(pk=image.pk).exists())
@@ -487,7 +488,8 @@ class PinTests(APITestCase):
         image = create_image()
         pin = create_pin(self.user, image, [])
         files = self._image_files(image)
-        self.client.delete(reverse("pin-detail", kwargs={"pk": pin.pk}))
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.delete(reverse("pin-detail", kwargs={"pk": pin.pk}))
         self.assertFalse(Image.objects.filter(pk=image.pk).exists())
         for f in files:
             self.assertFalse(f.storage.exists(f.name), f.name)

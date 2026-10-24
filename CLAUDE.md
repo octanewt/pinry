@@ -45,7 +45,7 @@ For local development, run `manage.py runserver` and `pnpm serve` at the same ti
 
 CI (`.github/workflows/`) does the following:
 
-- **Backend:** runs `uv sync --locked`, then flake8, `makemigrations --check` and the Django tests on Python 3.12, 3.13 and 3.14.
+- **Backend:** runs `uv sync --locked`, then flake8, `makemigrations --check` and the Django tests on Python 3.12, 3.13 and 3.14, all on SQLite. A second job runs the tests on PostgreSQL 17 (Python 3.13); tests that need concurrent write transactions, such as `core/tests/concurrency.py`, are skipped on SQLite.
 - **Frontend:** runs `pnpm install --frozen-lockfile`, `pnpm lint` and `pnpm build` on Node 26.
 - **Docker:** builds the release image and smoke-tests it, builds the dev image, and builds for arm64 (see Docker below).
 
@@ -75,6 +75,7 @@ Django apps:
   Details:
   - **Privacy**: private boards and pins are filtered for non-owners in `core/serializers.py` (`filter_private_pin`, `filter_private_board`) and in the viewset querysets. Any change to how pins or boards are listed must keep this filtering.
   - `Pin.url` and `Pin.referer` hold up to 2048 characters. `referer` is labelled "Source" in the UI.
+  - Pins can share an image. `delete_pin_images` (`core/models.py`) deletes an image with its last pin, after locking the image row with `select_for_update()` so concurrent deletes can't leave it orphaned (issue #7).
   - When an image is fetched from a URL, it is checked with Pillow (`ImageManager._is_valid_image`) and rejected if Pillow can't open it.
   - Tags use `django-taggit` 6 (`pin.tags.set(list)`, not `set(*tags)`). Filtering uses `django-filter`; viewsets declare `filterset_fields`/`filterset_class`.
   - Multi-tag search is in `core/filters.py` (`TagsFilterBackend`): `/api/v2/pins/?tags=a&tags=b&tags_mode=all|any`, defaulting to `all`. The frontend sends repeated `tags=` keys through `serializeParams` in `api.js`.
@@ -108,6 +109,8 @@ Frontend (`pinry-spa/src/`):
 - Backend tests live in `core/tests/` (`api.py` and `views.py`, re-exported from `core/tests/__init__.py`, so register new test modules there), `users/tests.py`, `django_images/tests.py` and `pinry_plugins/tests.py`.
 - Use the fixture helpers in `core/tests/helpers.py` (`create_user`, `create_image`, `create_pin`, `create_tag`). Their test image is `docs/src/imgs/logo-dark.png`, so that file must stay where it is.
 - API tests use DRF's `APITestCase`.
+- Image files are deleted on commit (`transaction.on_commit` in `django_images/models.py`), so inside a `TestCase` wrap the delete in `self.captureOnCommitCallbacks(execute=True)` to check that files are gone. `manage.py test` gives each run a temporary `MEDIA_ROOT`.
+- To run the tests on PostgreSQL locally, set `DATABASE_URL=postgres://...` (the test runner creates its own `test_` database).
 - The frontend has no test suite. `pnpm lint` and `pnpm build` are the checks.
 
 ## Conventions

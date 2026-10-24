@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
-from django.db import models
+from django.db import models, transaction
 from django.dispatch import receiver
 
 from django_images.models import Image as BaseImage, Thumbnail
@@ -140,11 +140,16 @@ class Pin(models.Model):
 
 
 @receiver(models.signals.post_delete, sender=Pin)
-def delete_pin_images(sender, instance, **kwargs):
+def delete_pin_images(sender, instance, using, **kwargs):
     # Pins can share an image, so only delete it along with its last pin.
-    if Pin.objects.filter(image_id=instance.image_id).exists():
-        return
-    try:
-        instance.image.delete()
-    except Image.DoesNotExist:
-        pass
+    # Lock the image row before counting its pins: otherwise two requests
+    # deleting its last two pins at once each still see the other pin and
+    # neither deletes it (issue #7). SQLite ignores the lock, but it runs
+    # one write transaction at a time anyway.
+    with transaction.atomic(using=using, savepoint=False):
+        image = (Image.objects.using(using).select_for_update()
+                 .filter(pk=instance.image_id).first())
+        if image is None or \
+                Pin.objects.using(using).filter(image_id=image.pk).exists():
+            return
+        image.delete()

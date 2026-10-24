@@ -2,7 +2,7 @@ import hashlib
 import os.path
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.dispatch import receiver
 
@@ -133,7 +133,15 @@ def original_changed(sender, instance, created, **kwargs):
 
 
 @receiver(models.signals.post_delete)
-def delete_image_files(sender, instance, **kwargs):
+def delete_image_files(sender, instance, using, **kwargs):
     if isinstance(instance, (Image, Thumbnail)) and IMAGE_AUTO_DELETE:
-        if instance.image.storage.exists(instance.image.name):
-            instance.image.delete(save=False)
+        storage, name = instance.image.storage, instance.image.name
+        if not name:
+            return
+
+        # Only once the delete is committed, so a delete that rolls back
+        # doesn't leave a row whose file is gone.
+        def delete_file():
+            if storage.exists(name):
+                storage.delete(name)
+        transaction.on_commit(delete_file, using=using)
