@@ -1,3 +1,4 @@
+import hashlib
 import os
 
 import PIL.Image
@@ -7,7 +8,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
-from django.db import models
+from django.db import models, transaction
 from django.dispatch import receiver
 
 from django_images.models import Image as BaseImage, Thumbnail
@@ -55,9 +56,32 @@ class ImageManager(models.Manager):
         base = os.path.splitext(file_name)[0][:64]
         return base or "image"
 
+    def lock_reusable(self, reusable, **lookup):
+        """Return the first image in ``reusable`` matching ``lookup``, or None.
+
+        The image row is locked, so when this runs in the transaction that
+        saves a pin for it, its last other pin can't be deleted (taking the
+        image with it) before the new pin is saved (issue #7).
+        """
+        pk = reusable.filter(**lookup).order_by('pk') \
+            .values_list('pk', flat=True).first()
+        if pk is None:
+            return None
+        with transaction.atomic():
+            image = self.select_for_update().filter(pk=pk).first()
+        # Check again now that it's locked: it may have been deleted, or
+        # lost the pin that made it reusable, while we waited.
+        if image is None or not reusable.filter(pk=pk).exists():
+            return None
+        return image
+
     # FIXME: Move this into an asynchronous task
-    def create_for_url(self, url, referer=None, uploaded_by=None):
+    def create_for_url(self, url, referer=None, uploaded_by=None,
+                       reusable=None):
         """Fetch ``url`` and store it as an Image.
+
+        If an image in the ``reusable`` queryset already has the same
+        content, return that instead of storing a copy (issue #8).
 
         Returns None if the content isn't an image Pillow can read; raises
         core.fetch.FetchError if the URL can't or mustn't be fetched.
@@ -66,6 +90,11 @@ class ImageManager(models.Manager):
         ext = self._extension_for_format(self._detect_format(buf))
         if ext is None:
             return None
+        sha256 = hashlib.sha256(buf.getvalue()).hexdigest()
+        if reusable is not None:
+            existing = self.lock_reusable(reusable, sha256=sha256)
+            if existing is not None:
+                return existing
         # Name the file after the detected format, never the URL, so a
         # polyglot fetched from ".../x.html" isn't served as HTML.
         file_name = self._base_name(url) + ext
@@ -75,7 +104,7 @@ class ImageManager(models.Manager):
         # create the image and its thumbnails in one transaction, removing
         # a chance of getting Database into a inconsistent state when we
         # try to create thumbnails one by one later
-        image = self.create(image=obj, uploaded_by=uploaded_by)
+        image = self.create(image=obj, uploaded_by=uploaded_by, sha256=sha256)
         Thumbnail.objects.get_or_create_at_sizes(image, settings.IMAGE_SIZES.keys())
         return image
 
