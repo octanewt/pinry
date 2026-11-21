@@ -28,10 +28,19 @@ private board is never made public.
 ## 1. Get the export
 
 On Pinterest, open **Settings > Privacy and data > Request your data**.
-Pinterest emails a download link, usually within 48 hours. The download
-is a single HTML file.
+Pinterest emails a download link, usually within 48 hours.
 
-The file also holds personal account data (your email address, login
+Pinterest has delivered the export in two layouts, and the command reads
+both and tells you which one it found:
+
++ **Folder (2026 and later)**: a .zip that unpacks to a folder with
+  `start_here.html` and a sub-folder per kind of data (`boards/`, `pins/`
+  and so on). Give the command the .zip itself, the unpacked folder, or
+  any page in it.
++ **Single page (2025 and earlier)**: one HTML file. Give the command
+  that file.
+
+The export also holds personal account data (your email address, login
 history and messages). Keep it somewhere private and delete it once the
 import is done.
 
@@ -39,11 +48,14 @@ import is done.
 
 With the Docker setup in [Install with Docker](install-with-docker.md),
 `./data` next to the compose file is `/data` inside the container, so copy
-the file there:
+the export there:
 
 ```sh
-cp ~/Downloads/pinterest_export.html ./data/
+cp ~/Downloads/pinterest_export.zip ./data/
 ```
+
+(Or `cp -r` the unpacked folder, or copy a single-page export's HTML
+file. The examples below use the .zip; use your own file or folder name.)
 
 The pins need a Pinry user to own them. Create one first if needed
 (`docker compose exec pinry python manage.py createsuperuser`).
@@ -52,10 +64,10 @@ The pins need a Pinry user to own them. Create one first if needed
 
 ```sh
 docker compose exec pinry python manage.py import_pinterest \
-    /data/pinterest_export.html --user YOUR_USERNAME --dry-run
+    /data/pinterest_export.zip --user YOUR_USERNAME --dry-run
 ```
 
-The dry run reads the file and prints how many boards would be created
+The dry run reads the export, prints which layout it found, and prints how many boards would be created
 and how many pins would be imported, public and private, without changing
 anything or downloading images. Check the private count before going on:
 anyone with a link can see public pins.
@@ -64,7 +76,7 @@ anyone with a link can see public pins.
 
 ```sh
 docker compose exec pinry python manage.py import_pinterest \
-    /data/pinterest_export.html --user YOUR_USERNAME
+    /data/pinterest_export.zip --user YOUR_USERNAME
 ```
 
 Options:
@@ -85,8 +97,8 @@ Running it again later with a newer export adds only the new pins.
 
 ## 5. Clean up
 
-Delete the export file from `./data` when you're done:
+Delete the export from `./data` when you're done:
 
 ```sh
-rm ./data/pinterest_export.html
+rm ./data/pinterest_export.zip    # or rm -r the unpacked folder
 ```
