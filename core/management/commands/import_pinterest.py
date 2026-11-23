@@ -7,6 +7,14 @@ from core.importers.pinterest import (
 from users.models import User
 
 
+def _pin_link(source_id):
+    """The Pinterest page of an imported pin, for checking it by hand."""
+    prefix = "pinterest:"
+    if source_id.startswith(prefix):
+        return "https://www.pinterest.com/pin/%s/" % source_id[len(prefix):]
+    return source_id
+
+
 class Command(BaseCommand):
     help = (
         "Import boards and pins from a Pinterest data export (from Settings "
@@ -93,13 +101,30 @@ class Command(BaseCommand):
             % (report.pins_imported, verb, report.pins_public,
                report.pins_private, report.pins_already_imported)
         )
+        if report.gone:
+            self.stdout.write(
+                "%d pins have no image left on Pinterest (usually because "
+                "the pin was deleted), so they can't be imported:"
+                % len(report.gone)
+            )
+            for source_id, _reason in report.gone:
+                self.stdout.write("  %s" % _pin_link(source_id))
+            self.stdout.write(
+                "If many pins show up here at once, Pinterest may be "
+                "refusing downloads instead; wait a while and run the "
+                "import again."
+            )
         if report.failed:
             self.stdout.write(
                 "%d pins failed; run the import again to retry them."
                 % len(report.failed)
             )
-            if options["verbosity"] >= 2:
-                for source_id, reason in report.failed:
-                    self.stdout.write("  %s: %s" % (source_id, reason))
+            for source_id, reason in report.failed:
+                self.stdout.write("  %s: %s" % (_pin_link(source_id), reason))
+            if report.maybe_gone:
+                self.stdout.write(
+                    "If they keep failing, they may be gone from Pinterest: "
+                    "open each pin's link to see if it still exists."
+                )
         if dry_run:
             self.stdout.write("Dry run: nothing was changed.")

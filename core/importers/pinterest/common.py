@@ -214,7 +214,8 @@ def image_urls(image_id):
 
     Pinterest keeps the original under its own extension, which the export
     doesn't record, so try the common ones before the 736px-wide copy,
-    which is always a JPEG.
+    which is always a JPEG. Some old pins have lost the original and the
+    736px copy but still have smaller ones, so those come last.
     """
     path = "%s/%s/%s/%s" % (
         image_id[0:2], image_id[2:4], image_id[4:6], image_id,
@@ -223,7 +224,10 @@ def image_urls(image_id):
         "https://i.pinimg.com/originals/%s.%s" % (path, ext)
         for ext in ("jpg", "png", "gif", "webp")
     ]
-    urls.append("https://i.pinimg.com/736x/%s.jpg" % path)
+    urls.extend(
+        "https://i.pinimg.com/%s/%s.jpg" % (size, path)
+        for size in ("736x", "564x", "474x", "236x")
+    )
     return urls
 
 

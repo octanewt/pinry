@@ -15,6 +15,14 @@ from django.db.models import Q
 from core.fetch import FetchError
 from core.models import Board, Image, Pin
 
+# Statuses meaning the image server doesn't have the file.
+GONE_STATUSES = (404, 410)
+# Pinterest's image server also answers 403 for a file that doesn't exist
+# (as Amazon S3 does when listing is off), but 403 can also mean it is
+# refusing downloads. A pin that got only 403s counts as gone only if some
+# other image downloaded in the same run, showing downloads work.
+REFUSED_STATUS = 403
+
 BOARD_NAME_LENGTH = Board._meta.get_field("name").max_length
 LINK_LENGTH = Pin._meta.get_field("referer").max_length
 
@@ -47,6 +55,20 @@ class ImportReport:
     pins_private: int = 0
     pins_already_imported: int = 0
     failed: list = field(default_factory=list)
+    # Pins whose image every URL said doesn't exist: retrying won't help.
+    gone: list = field(default_factory=list)
+    # Failed pins that got only 403s: they may be gone too.
+    maybe_gone: int = 0
+
+
+class ImageGone(FetchError):
+    """Every candidate URL answered that the image doesn't exist.
+
+    ``confirmed`` is False when every answer was 403, which can also mean
+    the server is refusing downloads.
+    """
+
+    confirmed = True
 
 
 def board_name(name):
@@ -69,6 +91,10 @@ class PinImporter(object):
         # Image URL -> Image, so a picture several pins share is
         # downloaded once per run.
         self._images = {}
+        # Whether any image downloaded this run, and the pins that got
+        # only 403s, sorted into gone or failed once the run is over.
+        self._downloaded = False
+        self._refused = []
 
     def run(self, boards, pins):
         boards = list(boards)
@@ -100,6 +126,11 @@ class PinImporter(object):
             self._add_pin(pin)
             if index % 100 == 0:
                 self.progress("%d of %d pins processed" % (index, len(pins)))
+        if self._downloaded:
+            self.report.gone.extend(self._refused)
+        else:
+            self.report.failed.extend(self._refused)
+            self.report.maybe_gone = len(self._refused)
         return self.report
 
     def _add_board(self, item):
@@ -154,6 +185,12 @@ class PinImporter(object):
                     Pin.objects.filter(pk=pin.pk).update(
                         published=item.created,
                     )
+        except ImageGone as e:
+            if e.confirmed:
+                self.report.gone.append((item.source_id, str(e)))
+            else:
+                self._refused.append((item.source_id, str(e)))
+            return
         except FetchError as e:
             self.report.failed.append((item.source_id, str(e)))
             return
@@ -187,6 +224,8 @@ class PinImporter(object):
                     Image.objects.filter(pk=cached.pk).exists():
                 return cached, url
         error = "No image found."
+        statuses = set()
+        all_gone = bool(urls)
         for url in urls:
             if self.delay:
                 self.sleep(self.delay)
@@ -196,9 +235,26 @@ class PinImporter(object):
                 )
             except FetchError as e:
                 error = str(e)
+                if e.status is not None:
+                    statuses.add(e.status)
+                if e.status not in GONE_STATUSES + (REFUSED_STATUS,):
+                    all_gone = False
                 continue
             if image is not None:
+                self._downloaded = True
                 self._images[url] = image
                 return image, url
             error = "The download isn't an image."
+            all_gone = False
+        if statuses:
+            # Say what the server answered, such as 404 when Pinterest no
+            # longer has the image.
+            error = "%s (HTTP %s from the image server)" % (
+                error.rstrip("."),
+                ", ".join(str(status) for status in sorted(statuses)),
+            )
+        if all_gone:
+            gone = ImageGone(error)
+            gone.confirmed = statuses != {REFUSED_STATUS}
+            raise gone
         raise FetchError(error)
