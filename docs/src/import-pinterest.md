@@ -95,10 +95,12 @@ before are skipped.
 The importer tries the original image first, then the 736, 564, 474 and
 236-pixel copies. At the end it lists, with a link to each on Pinterest:
 
-+ Pins that **no longer exist on Pinterest**: every copy of the image is
-  gone (the server answered 404), usually because the pin was deleted or
-  taken down after the export was made. Retrying won't help; open the
-  link to confirm.
++ Pins that have **no image left on Pinterest**: the image server
+  refused every copy (it answers 403 or 404 for files it doesn't have),
+  usually because the pin was deleted or taken down after the export was
+  made. Retrying won't help; open the link to confirm. If a large number
+  show up at once, Pinterest may be refusing downloads instead: wait a
+  while and run the import again.
 + Pins that **failed** for another reason (a network error, a timeout, or
   another answer from the server). These are retried on the next run.
 

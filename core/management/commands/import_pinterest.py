@@ -103,12 +103,17 @@ class Command(BaseCommand):
         )
         if report.gone:
             self.stdout.write(
-                "%d pins no longer exist on Pinterest (no copy of their "
-                "image is left), so they can't be imported:"
+                "%d pins have no image left on Pinterest (usually because "
+                "the pin was deleted), so they can't be imported:"
                 % len(report.gone)
             )
             for source_id, _reason in report.gone:
                 self.stdout.write("  %s" % _pin_link(source_id))
+            self.stdout.write(
+                "If many pins show up here at once, Pinterest may be "
+                "refusing downloads instead; wait a while and run the "
+                "import again."
+            )
         if report.failed:
             self.stdout.write(
                 "%d pins failed; run the import again to retry them."

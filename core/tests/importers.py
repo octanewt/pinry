@@ -546,14 +546,14 @@ class ImporterTests(TestCase):
 
     def test_failure_should_say_what_the_server_answered(self):
         page = export_page([], [_pin("1", "B")])
-        errors = [http_error(403)] + [
+        errors = [http_error(500)] + [
             http_error(404)
         ] * (len(image_urls(IMAGE_A)) - 1)
         with mock.patch("core.models.fetch_url", side_effect=errors):
             report = self._run(page)
         self.assertEqual(report.failed, [(
             "pinterest:1",
-            "Could not fetch the image (HTTP 403, 404 from the image server)",
+            "Could not fetch the image (HTTP 404, 500 from the image server)",
         )])
         self.assertEqual(report.gone, [])
 
@@ -566,6 +566,16 @@ class ImporterTests(TestCase):
         self.assertEqual([source for source, _ in report.gone],
                          ["pinterest:1"])
         self.assertFalse(Pin.objects.exists())
+
+    def test_403_from_every_url_should_count_as_gone(self):
+        # Pinterest's image server answers 403 for files that don't exist.
+        page = export_page([], [_pin("1", "B")])
+        errors = [http_error(403)] * 5 + [http_error(404)] * (
+            len(image_urls(IMAGE_A)) - 5)
+        with mock.patch("core.models.fetch_url", side_effect=errors):
+            report = self._run(page)
+        self.assertEqual(report.failed, [])
+        self.assertEqual(len(report.gone), 1)
 
     def test_network_error_should_not_count_as_gone(self):
         page = export_page([], [_pin("1", "B")])
@@ -673,7 +683,7 @@ class ImportPinterestCommandTests(TestCase):
                         side_effect=http_error(404)):
             out = self._call(self.path, "--user", self.user.username,
                              "--delay", "0")
-        self.assertIn("4 pins no longer exist on Pinterest", out)
+        self.assertIn("4 pins have no image left on Pinterest", out)
         self.assertIn("  https://www.pinterest.com/pin/100/\n", out)
         self.assertNotIn("pins failed", out)
 

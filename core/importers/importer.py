@@ -15,8 +15,10 @@ from django.db.models import Q
 from core.fetch import FetchError
 from core.models import Board, Image, Pin
 
-# Statuses meaning the image server doesn't have the file at all.
-GONE_STATUSES = (404, 410)
+# Statuses meaning the image server doesn't have the file. Pinterest's
+# image server answers 403, not 404, for a file that doesn't exist (as
+# Amazon S3 does when listing is off), so 403 on every URL counts too.
+GONE_STATUSES = (403, 404, 410)
 
 BOARD_NAME_LENGTH = Board._meta.get_field("name").max_length
 LINK_LENGTH = Pin._meta.get_field("referer").max_length
