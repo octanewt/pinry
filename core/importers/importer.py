@@ -1,6 +1,6 @@
 """Create Pinry boards and pins from data exported by another service.
 
-Readers (such as ``pinterest_export``) turn their source into ImportBoard
+Readers (such as ``pinterest``) turn their source into ImportBoard
 and ImportPin items; PinImporter writes them for one user. Each imported
 pin records its ``source_id``, so running the same import again skips the
 pins already imported and only retries the ones that failed.

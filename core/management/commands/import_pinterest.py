@@ -1,8 +1,8 @@
 from django.core.management import BaseCommand, CommandError
 
 from core.importers.importer import PinImporter
-from core.importers.pinterest_export import (
-    ExportFormatError, import_items, parse_export,
+from core.importers.pinterest import (
+    ExportFormatError, import_items, read_export,
 )
 from users.models import User
 
@@ -17,14 +17,19 @@ def _pin_link(source_id):
 
 class Command(BaseCommand):
     help = (
-        "Import boards and pins from a Pinterest data export (the HTML file "
-        "from Settings > Privacy and data > Request your data). Images are "
+        "Import boards and pins from a Pinterest data export (from Settings "
+        "> Privacy and data > Request your data): the HTML file of older "
+        "exports, or the folder or .zip of newer ones. Images are "
         "downloaded from Pinterest's image server. Pins imported before are "
         "skipped, so an interrupted import can be run again."
     )
 
     def add_arguments(self, parser):
-        parser.add_argument("export", help="Path to the export's HTML file.")
+        parser.add_argument(
+            "export",
+            help="Path to the export: its HTML file (older exports), or its "
+                 "folder, .zip or any page in the folder (newer exports).",
+        )
         parser.add_argument(
             "--user", required=True,
             help="Username of the Pinry user who will own the pins.",
@@ -58,15 +63,14 @@ class Command(BaseCommand):
         except User.DoesNotExist:
             raise CommandError("No user named %r." % user) from None
         try:
-            with open(export, encoding="utf-8") as f:
-                page = f.read()
-        except (OSError, UnicodeDecodeError) as e:
+            parser, boards, pins = read_export(export)
+        except OSError as e:
             raise CommandError("Can't read %s: %s" % (export, e)) from e
-        try:
-            boards, pins = import_items(*parse_export(page))
         except ExportFormatError as e:
             raise CommandError(str(e)) from e
+        boards, pins = import_items(boards, pins)
 
+        self.stdout.write("Export layout: %s." % parser.label)
         self.stdout.write(
             "Found %d boards and %d pins in the export."
             % (len(boards), len(pins))
