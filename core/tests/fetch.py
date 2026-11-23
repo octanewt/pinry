@@ -251,8 +251,9 @@ class FetchUrlTests(FetchServerMixin, SimpleTestCase):
                 fetch_url(self.url("/redirect?to=/slow"))
 
     def test_rejects_error_status(self):
-        with self.assertRaises(FetchError):
+        with self.assertRaises(FetchError) as caught:
             fetch_url(self.url("/missing"))
+        self.assertEqual(caught.exception.status, 404)
 
     def test_uses_timeout(self):
         with mock.patch("requests.Session.get",

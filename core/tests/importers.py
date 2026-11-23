@@ -8,7 +8,7 @@ from django.core.management import call_command, CommandError
 from django.test import TestCase
 
 from .helpers import TEST_IMAGE_PATH, create_user
-from core.fetch import FetchError
+from core.fetch import FetchError, http_error
 from core.importers.importer import ImportBoard, ImportPin, PinImporter
 from core.importers.pinterest_export import (
     ExportFormatError, description, image_urls, import_items, parse_export,
@@ -148,13 +148,16 @@ class PinterestExportParserTests(TestCase):
         with self.assertRaises(ExportFormatError):
             parse_export("<html><h1>Something else</h1></html>")
 
-    def test_image_urls_should_try_originals_then_736x(self):
+    def test_image_urls_should_try_originals_then_smaller_copies(self):
         urls = image_urls(IMAGE_A)
         self.assertEqual(
             urls[0], "https://i.pinimg.com/originals/73/e9/5b/%s.jpg" % IMAGE_A,
         )
         self.assertEqual(
-            urls[-1], "https://i.pinimg.com/736x/73/e9/5b/%s.jpg" % IMAGE_A,
+            urls[4], "https://i.pinimg.com/736x/73/e9/5b/%s.jpg" % IMAGE_A,
+        )
+        self.assertEqual(
+            urls[-1], "https://i.pinimg.com/236x/73/e9/5b/%s.jpg" % IMAGE_A,
         )
 
     def test_description_should_put_title_first(self):
@@ -271,6 +274,48 @@ class ImporterTests(TestCase):
         report = self._run(page)
         self.assertEqual(report.pins_imported, 1)
 
+    def test_should_fall_back_to_smaller_copy(self):
+        page = export_page([], [_pin("1", "B")])
+        missing = http_error(404)
+        with mock.patch("core.models.fetch_url") as fetch:
+            fetch.side_effect = [missing] * 6 + [_image_bytes()]
+            self._run(page)
+        pin = Pin.objects.get()
+        self.assertEqual(pin.url, image_urls(IMAGE_A)[6])
+        self.assertIn("/474x/", pin.url)
+
+    def test_failure_should_say_what_the_server_answered(self):
+        page = export_page([], [_pin("1", "B")])
+        errors = [http_error(403)] + [
+            http_error(404)
+        ] * (len(image_urls(IMAGE_A)) - 1)
+        with mock.patch("core.models.fetch_url", side_effect=errors):
+            report = self._run(page)
+        self.assertEqual(report.failed, [(
+            "pinterest:1",
+            "Could not fetch the image (HTTP 403, 404 from the image server)",
+        )])
+        self.assertEqual(report.gone, [])
+
+    def test_pin_with_no_image_left_should_be_reported_as_gone(self):
+        page = export_page([], [_pin("1", "B")])
+        with mock.patch("core.models.fetch_url",
+                        side_effect=http_error(404)):
+            report = self._run(page)
+        self.assertEqual(report.failed, [])
+        self.assertEqual([source for source, _ in report.gone],
+                         ["pinterest:1"])
+        self.assertFalse(Pin.objects.exists())
+
+    def test_network_error_should_not_count_as_gone(self):
+        page = export_page([], [_pin("1", "B")])
+        errors = [http_error(404)] * (len(image_urls(IMAGE_A)) - 1) + [
+            FetchError("Could not fetch the image.")]
+        with mock.patch("core.models.fetch_url", side_effect=errors):
+            report = self._run(page)
+        self.assertEqual(report.gone, [])
+        self.assertEqual(len(report.failed), 1)
+
     def test_force_private_should_make_everything_private(self):
         self._run(force_private=True)
         self.assertFalse(Board.objects.filter(private=False).exists())
@@ -351,6 +396,26 @@ class ImportPinterestCommandTests(TestCase):
                              "--delay", "0", "--tag", "pinterest")
         self.assertIn("4 were imported", out)
         self.assertEqual(Pin.objects.filter(tags__name="pinterest").count(), 4)
+
+    def test_should_list_failed_pins_with_links(self):
+        with mock.patch("core.models.fetch_url",
+                        side_effect=http_error(500)):
+            out = self._call(self.path, "--user", self.user.username,
+                             "--delay", "0")
+        self.assertIn("4 pins failed; run the import again", out)
+        self.assertIn(
+            "  https://www.pinterest.com/pin/100/: Could not fetch the image "
+            "(HTTP 500 from the image server)", out,
+        )
+
+    def test_should_list_gone_pins_separately(self):
+        with mock.patch("core.models.fetch_url",
+                        side_effect=http_error(404)):
+            out = self._call(self.path, "--user", self.user.username,
+                             "--delay", "0")
+        self.assertIn("4 pins no longer exist on Pinterest", out)
+        self.assertIn("  https://www.pinterest.com/pin/100/\n", out)
+        self.assertNotIn("pins failed", out)
 
     def test_should_reject_unknown_user(self):
         with self.assertRaises(CommandError):

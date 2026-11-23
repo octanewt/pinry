@@ -11,7 +11,7 @@ downloads each pin's image from Pinterest's image server
 | --- | --- |
 | Board | Board with the same name, owned by the user you choose |
 | Secret or protected board | Private board; its pins are private too |
-| Pin image | The original image, or the 736-pixel copy if the original can't be found |
+| Pin image | The original image, or the largest copy Pinterest still has (736 pixels wide or smaller) |
 | Pin title and description | Description, title on the first line (alt text if both are empty) |
 | Pin source link | Source |
 | Date the pin was saved | Pin date; pins are created oldest first, so the newest are at the top of the feed |
@@ -78,8 +78,17 @@ Options:
 
 Each pin is saved as soon as its image is downloaded. If the import stops
 (or you stop it with Ctrl+C), run the same command again: pins imported
-before are skipped. Pins whose image couldn't be downloaded are counted
-at the end (`-v 2` lists them) and retried on the next run.
+before are skipped.
+
+The importer tries the original image first, then the 736, 564, 474 and
+236-pixel copies. At the end it lists, with a link to each on Pinterest:
+
++ Pins that **no longer exist on Pinterest**: every copy of the image is
+  gone (the server answered 404), usually because the pin was deleted or
+  taken down after the export was made. Retrying won't help; open the
+  link to confirm.
++ Pins that **failed** for another reason (a network error, a timeout, or
+  another answer from the server). These are retried on the next run.
 
 Running it again later with a newer export adds only the new pins.
 

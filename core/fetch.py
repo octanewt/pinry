@@ -31,7 +31,20 @@ CHUNK_SIZE = 64 * 1024
 
 
 class FetchError(Exception):
-    """The URL could not be fetched; the message is safe to show users."""
+    """The URL could not be fetched; the message is safe to show users.
+
+    ``status`` is the HTTP status the server answered with, when the
+    failure was an error response (see ``http_error``).
+    """
+
+    status = None
+
+
+def http_error(status):
+    """A FetchError for an error response with HTTP ``status``."""
+    error = FetchError("Could not fetch the image.")
+    error.status = status
+    return error
 
 
 class BlockedAddressError(FetchError):
@@ -263,6 +276,6 @@ def _fetch(url, referer, deadline):
                     url = urljoin(url, location)
                     continue
                 if not 200 <= response.status_code < 300:
-                    raise FetchError("Could not fetch the image.")
+                    raise http_error(response.status_code)
                 return _read_body(response, limit)
     raise FetchError("Too many redirects.")

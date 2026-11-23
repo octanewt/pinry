@@ -15,6 +15,9 @@ from django.db.models import Q
 from core.fetch import FetchError
 from core.models import Board, Image, Pin
 
+# Statuses meaning the image server doesn't have the file at all.
+GONE_STATUSES = (404, 410)
+
 BOARD_NAME_LENGTH = Board._meta.get_field("name").max_length
 LINK_LENGTH = Pin._meta.get_field("referer").max_length
 
@@ -47,6 +50,12 @@ class ImportReport:
     pins_private: int = 0
     pins_already_imported: int = 0
     failed: list = field(default_factory=list)
+    # Pins whose image every URL said doesn't exist: retrying won't help.
+    gone: list = field(default_factory=list)
+
+
+class ImageGone(FetchError):
+    """Every candidate URL answered that the image doesn't exist."""
 
 
 def board_name(name):
@@ -154,6 +163,9 @@ class PinImporter(object):
                     Pin.objects.filter(pk=pin.pk).update(
                         published=item.created,
                     )
+        except ImageGone as e:
+            self.report.gone.append((item.source_id, str(e)))
+            return
         except FetchError as e:
             self.report.failed.append((item.source_id, str(e)))
             return
@@ -187,6 +199,8 @@ class PinImporter(object):
                     Image.objects.filter(pk=cached.pk).exists():
                 return cached, url
         error = "No image found."
+        statuses = set()
+        all_gone = bool(urls)
         for url in urls:
             if self.delay:
                 self.sleep(self.delay)
@@ -196,9 +210,23 @@ class PinImporter(object):
                 )
             except FetchError as e:
                 error = str(e)
+                if e.status is not None:
+                    statuses.add(e.status)
+                if e.status not in GONE_STATUSES:
+                    all_gone = False
                 continue
             if image is not None:
                 self._images[url] = image
                 return image, url
             error = "The download isn't an image."
+            all_gone = False
+        if statuses:
+            # Say what the server answered, such as 404 when Pinterest no
+            # longer has the image.
+            error = "%s (HTTP %s from the image server)" % (
+                error.rstrip("."),
+                ", ".join(str(status) for status in sorted(statuses)),
+            )
+        if all_gone:
+            raise ImageGone(error)
         raise FetchError(error)
