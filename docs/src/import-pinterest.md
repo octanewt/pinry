@@ -107,7 +107,8 @@ The importer tries the original image first, then the 736, 564, 474 and
   pin that only got 403 answers is listed here when no other image
   downloaded in that run, such as a re-run where everything else was
   imported before, since then a refusal can't be told apart from a
-  missing file.
+  missing file. The command then says they may be gone: open each link
+  to check.
 
 Running it again later with a newer export adds only the new pins.
 

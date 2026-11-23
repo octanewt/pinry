@@ -57,6 +57,8 @@ class ImportReport:
     failed: list = field(default_factory=list)
     # Pins whose image every URL said doesn't exist: retrying won't help.
     gone: list = field(default_factory=list)
+    # Failed pins that got only 403s: they may be gone too.
+    maybe_gone: int = 0
 
 
 class ImageGone(FetchError):
@@ -128,6 +130,7 @@ class PinImporter(object):
             self.report.gone.extend(self._refused)
         else:
             self.report.failed.extend(self._refused)
+            self.report.maybe_gone = len(self._refused)
         return self.report
 
     def _add_board(self, item):

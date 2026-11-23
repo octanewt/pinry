@@ -121,5 +121,10 @@ class Command(BaseCommand):
             )
             for source_id, reason in report.failed:
                 self.stdout.write("  %s: %s" % (_pin_link(source_id), reason))
+            if report.maybe_gone:
+                self.stdout.write(
+                    "If they keep failing, they may be gone from Pinterest: "
+                    "open each pin's link to see if it still exists."
+                )
         if dry_run:
             self.stdout.write("Dry run: nothing was changed.")

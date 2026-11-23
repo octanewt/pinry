@@ -588,6 +588,7 @@ class ImporterTests(TestCase):
         self.assertEqual(report.gone, [])
         self.assertEqual([source for source, _ in report.failed],
                          ["pinterest:1"])
+        self.assertEqual(report.maybe_gone, 1)
 
     def test_404_should_count_as_gone_even_if_nothing_downloads(self):
         page = export_page([], [_pin("1", "B")])
@@ -698,6 +699,21 @@ class ImportPinterestCommandTests(TestCase):
             "  https://www.pinterest.com/pin/100/: Could not fetch the image "
             "(HTTP 500 from the image server)", out,
         )
+
+    def test_should_hint_failed_403_pins_may_be_gone(self):
+        with mock.patch("core.models.fetch_url",
+                        side_effect=http_error(403)):
+            out = self._call(self.path, "--user", self.user.username,
+                             "--delay", "0")
+        self.assertIn("4 pins failed; run the import again", out)
+        self.assertIn("If they keep failing, they may be gone", out)
+
+    def test_other_failures_should_not_hint_gone(self):
+        with mock.patch("core.models.fetch_url",
+                        side_effect=http_error(500)):
+            out = self._call(self.path, "--user", self.user.username,
+                             "--delay", "0")
+        self.assertNotIn("may be gone", out)
 
     def test_should_list_gone_pins_separately(self):
         with mock.patch("core.models.fetch_url",
