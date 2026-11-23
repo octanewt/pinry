@@ -567,8 +567,29 @@ class ImporterTests(TestCase):
                          ["pinterest:1"])
         self.assertFalse(Pin.objects.exists())
 
-    def test_403_from_every_url_should_count_as_gone(self):
+    def test_403_from_every_url_should_count_as_gone_if_others_download(self):
         # Pinterest's image server answers 403 for files that don't exist.
+        page = export_page([], [_pin("1", "B"), _pin("2", "B", image=IMAGE_B)])
+        refused = [http_error(403)] * len(image_urls(IMAGE_A))
+        with mock.patch("core.models.fetch_url",
+                        side_effect=refused + [_image_bytes()]):
+            report = self._run(page)
+        self.assertEqual(report.failed, [])
+        self.assertEqual([source for source, _ in report.gone],
+                         ["pinterest:1"])
+        self.assertEqual(report.pins_imported, 1)
+
+    def test_403_from_every_url_should_fail_if_nothing_downloads(self):
+        # It could mean Pinterest is refusing downloads, so keep retrying.
+        page = export_page([], [_pin("1", "B")])
+        with mock.patch("core.models.fetch_url",
+                        side_effect=http_error(403)):
+            report = self._run(page)
+        self.assertEqual(report.gone, [])
+        self.assertEqual([source for source, _ in report.failed],
+                         ["pinterest:1"])
+
+    def test_404_should_count_as_gone_even_if_nothing_downloads(self):
         page = export_page([], [_pin("1", "B")])
         errors = [http_error(403)] * 5 + [http_error(404)] * (
             len(image_urls(IMAGE_A)) - 5)
